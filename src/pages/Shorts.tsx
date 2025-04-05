@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChevronUp, ChevronDown, Heart, Download, Volume, VolumeX } from 'lucide-react';
@@ -19,6 +20,7 @@ const Shorts = () => {
   const { currentUser, userData, updateUserCredits } = useAuth();
   const navigate = useNavigate();
   const autoScrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const touchStartRef = useRef<number>(0);
   
   useEffect(() => {
     // Load initial videos
@@ -26,29 +28,33 @@ const Shorts = () => {
     
     // Add touch and gesture listeners
     const handleTouchStart = (e: TouchEvent) => {
-      const startY = e.touches[0].clientY;
-      const handleTouchMove = (e: TouchEvent) => {
-        const currentY = e.touches[0].clientY;
-        const deltaY = currentY - startY;
-        
-        // Swipe down threshold
-        if (deltaY > 100) {
-          navigateVideo(1);
-        }
-      };
-      
-      const handleTouchEnd = () => {
-        window.removeEventListener('touchmove', handleTouchMove);
-        window.removeEventListener('touchend', handleTouchEnd);
-      };
-      
-      window.addEventListener('touchmove', handleTouchMove);
-      window.addEventListener('touchend', handleTouchEnd);
+      touchStartRef.current = e.touches[0].clientY;
     };
     
-    window.addEventListener('touchstart', handleTouchStart);
+    const handleTouchEnd = (e: TouchEvent) => {
+      if (e.changedTouches && e.changedTouches.length > 0) {
+        const touchEnd = e.changedTouches[0].clientY;
+        const difference = touchEnd - touchStartRef.current;
+        
+        // Threshold for swipe detection
+        if (Math.abs(difference) > 70) {
+          if (difference > 0) {
+            // Swipe down - go to next video
+            navigateVideo(1);
+            console.log('Swiped down, going to next video');
+          } else {
+            // Swipe up - go to previous video
+            navigateVideo(-1);
+            console.log('Swiped up, going to previous video');
+          }
+        }
+      }
+    };
     
-    // Listen for swipe events
+    window.addEventListener('touchstart', handleTouchStart, { passive: true });
+    window.addEventListener('touchend', handleTouchEnd, { passive: true });
+    
+    // Listen for keyboard events
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'ArrowUp') {
         navigateVideo(-1);
@@ -60,6 +66,7 @@ const Shorts = () => {
     window.addEventListener('keydown', handleKeyDown);
     return () => {
       window.removeEventListener('touchstart', handleTouchStart);
+      window.removeEventListener('touchend', handleTouchEnd);
       window.removeEventListener('keydown', handleKeyDown);
       if (autoScrollTimeoutRef.current) {
         clearTimeout(autoScrollTimeoutRef.current);
@@ -257,7 +264,7 @@ const Shorts = () => {
             {/* Swipe Gesture Instructions */}
             <div className="absolute top-4 left-0 right-0 text-center z-10">
               <p className="text-white/70 text-xs">
-                Swipe down to next video
+                Swipe down for next video, swipe up for previous
               </p>
             </div>
             
