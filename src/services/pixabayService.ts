@@ -1,6 +1,6 @@
 
 // We'll use a placeholder API key - users should replace with their own
-const API_KEY = "REPLACE_WITH_YOUR_API_KEY";
+const API_KEY = "49658971-12bf63930d640b2f9ffcc901c";
 const BASE_URL = "https://pixabay.com/api/videos/";
 
 export interface PixabayVideo {
@@ -53,8 +53,19 @@ export type VideoSearchParams = {
   per_page?: number;
 };
 
+// Track video views for ad serving
+let viewedVideosCount = 0;
+
+export const incrementVideoViews = () => {
+  viewedVideosCount += 1;
+  return viewedVideosCount % 5 === 0; // Return true every 5 views
+};
+
+export const getViewedVideosCount = () => viewedVideosCount;
+export const resetViewedVideosCount = () => { viewedVideosCount = 0; };
+
 export const fetchVideos = async (params: VideoSearchParams = {}): Promise<PixabayResponse> => {
-  // Get the API key from localStorage
+  // Get the API key from localStorage or use default
   const apiKey = localStorage.getItem('pixabay_api_key') || API_KEY;
   
   const queryParams = new URLSearchParams({
@@ -89,4 +100,20 @@ export const getPopularCategories = (): string[] => {
     "music",
     "backgrounds"
   ];
+};
+
+export const downloadVideo = async (video: PixabayVideo): Promise<string> => {
+  try {
+    // Get the best available format
+    const videoUrl = video.videos.large.url || 
+                    video.videos.medium.url || 
+                    video.videos.small.url || 
+                    video.videos.tiny.url;
+    
+    // Return the URL with download parameter
+    return `${videoUrl}?download=1`;
+  } catch (error) {
+    console.error("Error preparing download:", error);
+    throw error;
+  }
 };

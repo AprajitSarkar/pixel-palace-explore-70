@@ -6,6 +6,10 @@ import Categories from '@/components/Categories';
 import VideosGrid from '@/components/VideosGrid';
 import ApiKeyForm from '@/components/ApiKeyForm';
 import { fetchVideos, VideoSearchParams, PixabayVideo } from '@/services/pixabayService';
+import { initializeLikedVideos } from '@/stores/likedVideosStore';
+import { initializeAds, showAdBanner } from '@/services/adService';
+import MobileNavBar from '@/components/MobileNavBar';
+import SplashScreen from '@/components/SplashScreen';
 
 const Index = () => {
   const [apiKey, setApiKey] = useState<string | null>(null);
@@ -14,6 +18,7 @@ const Index = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [page, setPage] = useState(1);
+  const [showSplash, setShowSplash] = useState(true);
   const { toast } = useToast();
 
   // Check for saved API key on initial load
@@ -22,6 +27,15 @@ const Index = () => {
     if (storedKey) {
       setApiKey(storedKey);
     }
+    
+    // Initialize liked videos store
+    initializeLikedVideos();
+    
+    // Initialize ads
+    initializeAds();
+    
+    // Show banner ad
+    showAdBanner();
   }, []);
 
   const loadVideos = useCallback(async () => {
@@ -110,6 +124,15 @@ const Index = () => {
     (window as any).__PIXABAY_API_KEY = key;
   };
 
+  const handleSplashFinished = () => {
+    setShowSplash(false);
+  };
+
+  // Show splash screen on first load
+  if (showSplash) {
+    return <SplashScreen onFinished={handleSplashFinished} />;
+  }
+
   return (
     <div className="min-h-screen bg-background">
       {!apiKey ? (
@@ -119,13 +142,14 @@ const Index = () => {
       ) : (
         <>
           <Header onSearch={handleSearch} />
-          <main>
+          <main className="pb-20">
             <Categories
               selectedCategory={selectedCategory}
               onSelectCategory={handleCategorySelect}
             />
             <VideosGrid videos={videos} isLoading={isLoading} />
           </main>
+          <MobileNavBar />
         </>
       )}
     </div>

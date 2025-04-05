@@ -1,8 +1,11 @@
 
 import React, { useState, useRef } from 'react';
-import { Play, Pause, Volume, Volume2, Heart } from 'lucide-react';
+import { Play, Pause, Volume, Volume2, Heart, Download } from 'lucide-react';
 import { Button } from "@/components/ui/button";
-import { PixabayVideo } from '@/services/pixabayService';
+import { PixabayVideo, incrementVideoViews, downloadVideo } from '@/services/pixabayService';
+import { isVideoLiked, toggleLikedVideo } from '@/stores/likedVideosStore';
+import { toast } from "sonner";
+import { showAdInterstitial } from '@/services/adService';
 
 interface VideoCardProps {
   video: PixabayVideo;
@@ -12,6 +15,8 @@ const VideoCard: React.FC<VideoCardProps> = ({ video }) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(true);
   const [isHovered, setIsHovered] = useState(false);
+  const [liked, setLiked] = useState(isVideoLiked(video.id));
+  const [isDownloading, setIsDownloading] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
 
   const handlePlayPause = () => {
@@ -20,6 +25,10 @@ const VideoCard: React.FC<VideoCardProps> = ({ video }) => {
         videoRef.current.pause();
       } else {
         videoRef.current.play();
+        if (incrementVideoViews()) {
+          // Show ad every 5 video plays
+          showAdInterstitial();
+        }
       }
       setIsPlaying(!isPlaying);
     }
@@ -29,6 +38,39 @@ const VideoCard: React.FC<VideoCardProps> = ({ video }) => {
     if (videoRef.current) {
       videoRef.current.muted = !isMuted;
       setIsMuted(!isMuted);
+    }
+  };
+
+  const handleLike = () => {
+    const isNowLiked = toggleLikedVideo(video);
+    setLiked(isNowLiked);
+    toast[isNowLiked ? "success" : "info"](
+      isNowLiked ? "Video added to likes" : "Video removed from likes"
+    );
+  };
+
+  const handleDownload = async () => {
+    setIsDownloading(true);
+    try {
+      // Show ad on download
+      showAdInterstitial();
+      
+      const downloadUrl = await downloadVideo(video);
+      
+      // Create a temporary anchor element to trigger the download
+      const a = document.createElement('a');
+      a.href = downloadUrl;
+      a.download = `pixelexplore-video-${video.id}.mp4`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      
+      toast.success("Download started");
+    } catch (error) {
+      toast.error("Download failed");
+      console.error("Download error:", error);
+    } finally {
+      setIsDownloading(false);
     }
   };
 
@@ -114,9 +156,19 @@ const VideoCard: React.FC<VideoCardProps> = ({ video }) => {
             <Button 
               size="icon" 
               variant="ghost" 
-              className="h-8 w-8 rounded-full text-accent hover:text-accent hover:bg-accent/20"
+              className={`h-8 w-8 rounded-full ${liked ? 'text-accent bg-accent/20' : 'text-accent hover:text-accent hover:bg-accent/20'}`}
+              onClick={handleLike}
             >
-              <Heart className="h-4 w-4" />
+              <Heart className={`h-4 w-4 ${liked ? 'fill-current' : ''}`} />
+            </Button>
+            <Button 
+              size="icon" 
+              variant="ghost" 
+              className="h-8 w-8 rounded-full text-primary hover:bg-primary/20"
+              onClick={handleDownload}
+              disabled={isDownloading}
+            >
+              <Download className={`h-4 w-4 ${isDownloading ? 'animate-pulse' : ''}`} />
             </Button>
           </div>
         </div>
