@@ -1,9 +1,11 @@
 
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Search, Menu, X } from 'lucide-react';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useAuth } from '@/contexts/AuthContext';
 
 interface HeaderProps {
   onSearch: (query: string) => void;
@@ -12,18 +14,33 @@ interface HeaderProps {
 const Header: React.FC<HeaderProps> = ({ onSearch }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [menuOpen, setMenuOpen] = useState(false);
+  const { currentUser, logout } = useAuth();
   const isMobile = useIsMobile();
+  const navigate = useNavigate();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onSearch(searchQuery);
   };
 
+  const handleLogin = () => {
+    navigate('/login');
+  };
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+      navigate('/');
+    } catch (error) {
+      console.error('Logout failed:', error);
+    }
+  };
+
   return (
     <header className="sticky top-0 z-50 w-full backdrop-blur-lg bg-background/80 border-b border-border/40">
       <div className="container flex items-center justify-between h-16 px-4">
         <div className="flex items-center">
-          <h1 className="text-xl font-bold text-primary">
+          <h1 className="text-xl font-bold text-primary" onClick={() => navigate('/')}>
             Pixel<span className="text-accent">Explore</span>
           </h1>
         </div>
@@ -46,8 +63,15 @@ const Header: React.FC<HeaderProps> = ({ onSearch }) => {
         <div className="flex items-center space-x-2">
           {!isMobile && (
             <>
-              <Button variant="outline" size="sm" className="rounded-full text-sm">Log in</Button>
-              <Button size="sm" className="rounded-full text-sm bg-accent hover:bg-accent/80">Join</Button>
+              {currentUser ? (
+                <Button variant="outline" size="sm" className="rounded-full text-sm" onClick={handleLogout}>
+                  Log out
+                </Button>
+              ) : (
+                <Button variant="outline" size="sm" className="rounded-full text-sm" onClick={handleLogin}>
+                  Log in
+                </Button>
+              )}
             </>
           )}
           
@@ -74,10 +98,6 @@ const Header: React.FC<HeaderProps> = ({ onSearch }) => {
               />
             </div>
           </form>
-          <div className="flex space-x-2">
-            <Button variant="outline" className="flex-1 rounded-full">Log in</Button>
-            <Button className="flex-1 rounded-full bg-accent hover:bg-accent/80">Join</Button>
-          </div>
         </div>
       )}
     </header>

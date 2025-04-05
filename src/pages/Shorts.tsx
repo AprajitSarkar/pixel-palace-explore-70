@@ -15,9 +15,11 @@ const Shorts = () => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [isMuted, setIsMuted] = useState(true);
+  const [autoScrollEnabled, setAutoScrollEnabled] = useState(true);
   const videoRefs = useRef<{ [key: number]: HTMLVideoElement | null }>({});
   const { currentUser, userData, updateUserCredits } = useAuth();
   const navigate = useNavigate();
+  const autoScrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
   useEffect(() => {
     // Load initial videos
@@ -33,7 +35,12 @@ const Shorts = () => {
     };
     
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      if (autoScrollTimeoutRef.current) {
+        clearTimeout(autoScrollTimeoutRef.current);
+      }
+    };
   }, []);
   
   // Fetch more videos when we're close to the end of the list
@@ -62,9 +69,22 @@ const Shorts = () => {
             console.error("Auto-play prevented:", error);
           });
         }
+        
+        // Setup auto scroll for next video after video duration
+        if (autoScrollTimeoutRef.current) {
+          clearTimeout(autoScrollTimeoutRef.current);
+        }
+        
+        if (autoScrollEnabled && currentIndex < videos.length - 1) {
+          // Use video duration to determine when to auto-scroll
+          const duration = videos[currentIndex]?.duration || 10;
+          autoScrollTimeoutRef.current = setTimeout(() => {
+            navigateVideo(1);
+          }, duration * 1000); // Convert to milliseconds
+        }
       }
     }
-  }, [currentIndex, videos]);
+  }, [currentIndex, videos, autoScrollEnabled]);
   
   const loadVideos = async () => {
     setIsLoading(true);
@@ -115,6 +135,11 @@ const Shorts = () => {
       if (newIndex % 5 === 0 && newIndex > 0) {
         showAdInterstitial();
       }
+      
+      // Reset auto scroll timer
+      if (autoScrollTimeoutRef.current) {
+        clearTimeout(autoScrollTimeoutRef.current);
+      }
     }
   };
   
@@ -146,7 +171,7 @@ const Shorts = () => {
     // Check if user has enough credits
     if (userData && userData.credits < 20) {
       toast.error("Not enough credits. You need 20 credits to download a video.");
-      navigate('/credits');
+      navigate('/shop');
       return;
     }
     
@@ -172,6 +197,22 @@ const Shorts = () => {
     } catch (error) {
       toast.error("Download failed");
       console.error("Download error:", error);
+    }
+  };
+  
+  const toggleAutoScroll = () => {
+    setAutoScrollEnabled(!autoScrollEnabled);
+    toast.info(!autoScrollEnabled ? "Auto-scroll enabled" : "Auto-scroll disabled");
+    
+    if (!autoScrollEnabled && videos.length > 0) {
+      // If enabling auto-scroll, start the timer
+      const duration = videos[currentIndex]?.duration || 10;
+      autoScrollTimeoutRef.current = setTimeout(() => {
+        navigateVideo(1);
+      }, duration * 1000);
+    } else if (autoScrollEnabled && autoScrollTimeoutRef.current) {
+      // If disabling auto-scroll, clear the timer
+      clearTimeout(autoScrollTimeoutRef.current);
     }
   };
   
@@ -201,27 +242,6 @@ const Shorts = () => {
               />
             </div>
             
-            {/* Navigation controls */}
-            <div className="absolute inset-x-0 top-1/4 bottom-1/4 flex flex-col justify-between items-center pointer-events-none">
-              <Button
-                size="icon"
-                variant="ghost"
-                onClick={() => navigateVideo(-1)}
-                className="h-10 w-10 rounded-full bg-black/20 text-white pointer-events-auto"
-                disabled={currentIndex === 0}
-              >
-                <ChevronUp className="h-6 w-6" />
-              </Button>
-              <Button
-                size="icon"
-                variant="ghost"
-                onClick={() => navigateVideo(1)}
-                className="h-10 w-10 rounded-full bg-black/20 text-white pointer-events-auto"
-              >
-                <ChevronDown className="h-6 w-6" />
-              </Button>
-            </div>
-            
             {/* Video info and actions */}
             <div className="absolute inset-x-0 bottom-20 px-4 py-2 bg-gradient-to-t from-black/70 to-transparent">
               <h2 className="text-white font-medium text-lg">
@@ -230,10 +250,20 @@ const Shorts = () => {
               <p className="text-white/80 text-sm">
                 By {videos[currentIndex].user}
               </p>
+              <div className="flex items-center mt-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-xs rounded-full bg-white/10 border-white/20 text-white"
+                  onClick={toggleAutoScroll}
+                >
+                  {autoScrollEnabled ? "Auto-scroll ON" : "Auto-scroll OFF"}
+                </Button>
+              </div>
             </div>
             
             {/* Action buttons */}
-            <div className="absolute right-4 bottom-1/4 flex flex-col space-y-4">
+            <div className="absolute right-4 bottom-1/3 flex flex-col space-y-4">
               <Button
                 size="icon"
                 variant="ghost"

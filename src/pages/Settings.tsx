@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from "@/hooks/use-toast";
@@ -7,10 +6,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { Info, ExternalLink, User, Bell, LogOut, Trash2, AlertTriangle, Volume2 } from "lucide-react";
+import { Info, ExternalLink, User, Bell, LogOut, Trash2, AlertTriangle, Volume2, CreditCard } from "lucide-react";
 import MobileNavBar from '@/components/MobileNavBar';
 import { toast } from "sonner";
 import { useAuth } from '@/contexts/AuthContext';
+import { Coins, Key } from '@/components/icons';
 import {
   Dialog,
   DialogContent,
@@ -124,9 +124,9 @@ const Settings = () => {
                 </div>
                 
                 <div className="space-y-4">
-                  <Button variant="outline" className="w-full justify-start" onClick={() => navigate('/credits')}>
+                  <Button variant="outline" className="w-full justify-start" onClick={() => navigate('/shop')}>
                     <Coins className="mr-2 h-4 w-4" />
-                    Manage Credits
+                    Shop
                   </Button>
                   
                   <Button variant="outline" className="w-full justify-start" onClick={() => navigate('/login')}>

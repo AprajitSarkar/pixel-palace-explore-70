@@ -160,8 +160,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       ...userData,
       credits: newCredits
     });
-
-    return newCredits;
+    
+    // Return void to match the interface
+    return;
   };
 
   const value = {
