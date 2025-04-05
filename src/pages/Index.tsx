@@ -4,7 +4,6 @@ import { useToast } from "@/hooks/use-toast";
 import Header from '@/components/Header';
 import Categories from '@/components/Categories';
 import VideosGrid from '@/components/VideosGrid';
-import ApiKeyForm from '@/components/ApiKeyForm';
 import { fetchVideos, VideoSearchParams, PixabayVideo } from '@/services/pixabayService';
 import { initializeLikedVideos } from '@/stores/likedVideosStore';
 import { initializeAds, showAdBanner } from '@/services/adService';
@@ -12,7 +11,6 @@ import MobileNavBar from '@/components/MobileNavBar';
 import SplashScreen from '@/components/SplashScreen';
 
 const Index = () => {
-  const [apiKey, setApiKey] = useState<string | null>(null);
   const [videos, setVideos] = useState<PixabayVideo[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -21,13 +19,7 @@ const Index = () => {
   const [showSplash, setShowSplash] = useState(true);
   const { toast } = useToast();
 
-  // Check for saved API key on initial load
   useEffect(() => {
-    const storedKey = localStorage.getItem('pixabay_api_key');
-    if (storedKey) {
-      setApiKey(storedKey);
-    }
-    
     // Initialize liked videos store
     initializeLikedVideos();
     
@@ -39,11 +31,8 @@ const Index = () => {
   }, []);
 
   const loadVideos = useCallback(async () => {
-    if (!apiKey) return;
-
     setIsLoading(true);
     try {
-      // Update API key in the service
       const params: VideoSearchParams = {
         page,
         per_page: 20,
@@ -76,15 +65,13 @@ const Index = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [apiKey, page, searchQuery, selectedCategory, toast]);
+  }, [page, searchQuery, selectedCategory, toast]);
 
   useEffect(() => {
-    if (apiKey) {
-      // Reset page when search query or category changes
-      setPage(1);
-      loadVideos();
-    }
-  }, [apiKey, searchQuery, selectedCategory, loadVideos]);
+    // Reset page when search query or category changes
+    setPage(1);
+    loadVideos();
+  }, [searchQuery, selectedCategory, loadVideos]);
 
   // Handle infinite scroll
   useEffect(() => {
@@ -116,14 +103,6 @@ const Index = () => {
     setSelectedCategory(category);
   };
 
-  const handleApiKeySubmit = (key: string) => {
-    setApiKey(key);
-    
-    // We need to replace the placeholder in the service
-    // This is done by updating window.__PIXABAY_API_KEY
-    (window as any).__PIXABAY_API_KEY = key;
-  };
-
   const handleSplashFinished = () => {
     setShowSplash(false);
   };
@@ -135,23 +114,15 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      {!apiKey ? (
-        <div className="min-h-screen flex items-center justify-center p-4">
-          <ApiKeyForm onSubmit={handleApiKeySubmit} />
-        </div>
-      ) : (
-        <>
-          <Header onSearch={handleSearch} />
-          <main className="pb-20">
-            <Categories
-              selectedCategory={selectedCategory}
-              onSelectCategory={handleCategorySelect}
-            />
-            <VideosGrid videos={videos} isLoading={isLoading} />
-          </main>
-          <MobileNavBar />
-        </>
-      )}
+      <Header onSearch={handleSearch} />
+      <main className="pb-20">
+        <Categories
+          selectedCategory={selectedCategory}
+          onSelectCategory={handleCategorySelect}
+        />
+        <VideosGrid videos={videos} isLoading={isLoading} />
+      </main>
+      <MobileNavBar />
     </div>
   );
 };
