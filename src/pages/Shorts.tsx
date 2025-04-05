@@ -8,7 +8,6 @@ import { toast } from "sonner";
 import { isVideoLiked, toggleLikedVideo } from '@/stores/likedVideosStore';
 import { showAdInterstitial } from '@/services/adService';
 import MobileNavBar from '@/components/MobileNavBar';
-import { Gesture, GestureDetector } from 'react-gesture-handler';
 
 const Shorts = () => {
   const [videos, setVideos] = useState<PixabayVideo[]>([]);
