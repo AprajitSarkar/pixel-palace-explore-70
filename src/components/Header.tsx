@@ -6,12 +6,19 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useAuth } from '@/contexts/AuthContext';
+import CategoryDrawer from './CategoryDrawer';
 
 interface HeaderProps {
   onSearch: (query: string) => void;
+  selectedCategory?: string | null;
+  onSelectCategory?: (category: string | null) => void;
 }
 
-const Header: React.FC<HeaderProps> = ({ onSearch }) => {
+const Header: React.FC<HeaderProps> = ({ 
+  onSearch, 
+  selectedCategory = null, 
+  onSelectCategory = () => {} 
+}) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [menuOpen, setMenuOpen] = useState(false);
   const { currentUser, logout } = useAuth();
@@ -39,10 +46,16 @@ const Header: React.FC<HeaderProps> = ({ onSearch }) => {
   return (
     <header className="sticky top-0 z-50 w-full backdrop-blur-lg bg-background/80 border-b border-border/40">
       <div className="container flex items-center justify-between h-16 px-4">
-        <div className="flex items-center">
+        <div className="flex items-center gap-2">
           <h1 className="text-xl font-bold text-primary" onClick={() => navigate('/')}>
             Pixel<span className="text-accent">Explore</span>
           </h1>
+          
+          {/* Category Drawer */}
+          <CategoryDrawer 
+            selectedCategory={selectedCategory} 
+            onSelectCategory={onSelectCategory} 
+          />
         </div>
 
         {!isMobile && (

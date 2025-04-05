@@ -2,7 +2,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useToast } from "@/hooks/use-toast";
 import Header from '@/components/Header';
-import Categories from '@/components/Categories';
 import VideosGrid from '@/components/VideosGrid';
 import { fetchVideos, VideoSearchParams, PixabayVideo } from '@/services/pixabayService';
 import { initializeLikedVideos } from '@/stores/likedVideosStore';
@@ -126,12 +125,12 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <Header onSearch={handleSearch} />
+      <Header 
+        onSearch={handleSearch} 
+        selectedCategory={selectedCategory}
+        onSelectCategory={handleCategorySelect}
+      />
       <main className="pb-20">
-        <Categories
-          selectedCategory={selectedCategory}
-          onSelectCategory={handleCategorySelect}
-        />
         <VideosGrid 
           videos={videos} 
           isLoading={isLoading} 
