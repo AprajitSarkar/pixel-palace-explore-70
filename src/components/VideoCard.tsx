@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { Play, Pause, Volume, Volume2, Heart, Download } from 'lucide-react';
 import { Button } from "@/components/ui/button";
@@ -28,11 +27,9 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, autoPlayEnabled = false })
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
-          // If the video is visible and autoplay is enabled
           if (entry.isIntersecting && autoPlayEnabled) {
             if (videoRef.current) {
               videoRef.current.play().catch(err => {
-                // Auto-play was prevented, which is expected if user hasn't interacted with the page
                 console.log("Auto-play prevented:", err);
               });
               setIsPlaying(true);
@@ -45,7 +42,7 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, autoPlayEnabled = false })
           }
         });
       },
-      { threshold: 0.7 } // Video will play when 70% visible
+      { threshold: 0.7 }
     );
 
     if (videoRef.current) {
@@ -66,7 +63,6 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, autoPlayEnabled = false })
       } else {
         videoRef.current.play();
         if (incrementVideoViews()) {
-          // Show ad every 5 video plays
           showAdInterstitial();
         }
       }
@@ -91,13 +87,11 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, autoPlayEnabled = false })
 
   const handleDownload = async () => {
     if (!currentUser) {
-      // Redirect to login if not authenticated
       toast.error("Please login to download videos");
       navigate('/login');
       return;
     }
     
-    // Check if user has enough credits
     if (userData && userData.credits < 20) {
       toast.error("Not enough credits. You need 20 credits to download a video.");
       navigate('/credits');
@@ -106,23 +100,15 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, autoPlayEnabled = false })
     
     setIsDownloading(true);
     try {
-      // Show ad on download
       showAdInterstitial();
-      
-      // Deduct credits
       await updateUserCredits(-20);
-      
-      // Get download URL
       const downloadUrl = video.videos.medium.url;
-      
-      // Create a temporary anchor element to trigger the download
       const a = document.createElement('a');
       a.href = downloadUrl;
       a.download = `pixelexplore-video-${video.id}.mp4`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
-      
       toast.success("Download started. 20 credits used.");
     } catch (error) {
       toast.error("Download failed");
@@ -132,7 +118,6 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, autoPlayEnabled = false })
     }
   };
 
-  // Get the best video format based on device
   const getVideoSource = () => {
     if (window.innerWidth <= 640) {
       return video.videos.tiny.url;
@@ -155,7 +140,6 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, autoPlayEnabled = false })
         }
       }}
     >
-      {/* Video thumbnail with play button overlay */}
       <div className="relative aspect-video">
         {!isPlaying && (
           <img 
@@ -174,7 +158,6 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, autoPlayEnabled = false })
           loop
         />
         
-        {/* Hover controls overlay */}
         <div 
           className={`absolute inset-0 bg-gradient-to-t from-black/70 to-transparent flex items-center justify-center
                       transition-opacity duration-300 ${isHovered ? 'opacity-100' : 'opacity-0'}`}
@@ -190,7 +173,6 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, autoPlayEnabled = false })
         </div>
       </div>
       
-      {/* Video info */}
       <div className="p-3">
         <div className="flex justify-between items-start mb-2">
           <div>

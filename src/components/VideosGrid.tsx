@@ -1,6 +1,6 @@
 
 import React from 'react';
-import VideoCard from './VideoCard';
+import VideoCardWrapper from './VideoCardWrapper';
 import { PixabayVideo } from '@/services/pixabayService';
 import { useIsMobile } from '@/hooks/use-mobile';
 
@@ -47,7 +47,7 @@ const VideosGrid: React.FC<VideosGridProps> = ({ videos, isLoading, autoPlayEnab
   return (
     <div className={`container px-4 pt-4 pb-12 ${isMobile ? 'grid grid-cols-1 gap-4' : 'video-grid'}`}>
       {videos.map((video) => (
-        <VideoCard key={video.id} video={video} autoPlayEnabled={autoPlayEnabled} />
+        <VideoCardWrapper key={video.id} video={video} autoPlayEnabled={autoPlayEnabled} />
       ))}
     </div>
   );

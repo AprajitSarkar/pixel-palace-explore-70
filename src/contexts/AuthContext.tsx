@@ -57,6 +57,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      console.log("Auth state changed:", user ? `User ${user.uid} logged in` : "No user");
       setCurrentUser(user);
       
       if (user) {
@@ -65,8 +66,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const docSnap = await getDoc(userRef);
           
           if (docSnap.exists()) {
+            console.log("User document exists in Firestore:", docSnap.data());
             setUserData(docSnap.data() as UserData);
           } else {
+            console.log("Creating new user document for:", user.uid);
             // Create new user profile with initial 50 credits
             const newUser: UserData = {
               uid: user.uid,
@@ -82,6 +85,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 createdAt: serverTimestamp()
               });
               
+              console.log("New user document created successfully");
               setUserData(newUser);
               toast("Welcome!", {
                 description: "You've received 50 credits as a new user!",
@@ -105,7 +109,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signUp = async (email: string, password: string) => {
     try {
+      console.log("Starting signup process for:", email);
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      console.log("User created successfully:", userCredential.user.uid);
       
       // Create user document with initial credits
       const userRef = doc(db, 'users', userCredential.user.uid);
@@ -118,6 +124,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         createdAt: serverTimestamp()
       });
       
+      console.log("User document created in Firestore");
       return;
     } catch (error: any) {
       console.error("Error during sign up:", error);
@@ -127,7 +134,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const login = async (email: string, password: string) => {
     try {
-      await signInWithEmailAndPassword(auth, email, password);
+      console.log("Attempting login for:", email);
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      console.log("Login successful for:", userCredential.user.uid);
     } catch (error: any) {
       console.error("Error during login:", error);
       throw error;
@@ -136,7 +145,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const loginWithGoogle = async () => {
     try {
-      await signInWithPopup(auth, googleProvider);
+      console.log("Attempting Google login");
+      const result = await signInWithPopup(auth, googleProvider);
+      console.log("Google login successful for:", result.user.uid);
     } catch (error: any) {
       console.error("Error during Google login:", error);
       throw error;
@@ -175,6 +186,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!currentUser) throw new Error("No authenticated user");
     
     try {
+      console.log("Starting account deletion process for:", currentUser.uid);
+      
       // 1. Delete user's likes
       const likesRef = collection(db, 'likes');
       const likesQuery = query(likesRef, where("userId", "==", currentUser.uid));
@@ -182,6 +195,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       const likesDeletePromises = likesSnapshot.docs.map(doc => deleteDoc(doc.ref));
       await Promise.all(likesDeletePromises);
+      console.log(`${likesSnapshot.docs.length} likes deleted`);
       
       // 2. Delete user's history
       const historyRef = collection(db, 'history');
@@ -190,6 +204,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       const historyDeletePromises = historySnapshot.docs.map(doc => deleteDoc(doc.ref));
       await Promise.all(historyDeletePromises);
+      console.log(`${historySnapshot.docs.length} history records deleted`);
       
       // 3. Delete user's storage files
       const storageRef = ref(storage, `users/${currentUser.uid}`);
@@ -197,15 +212,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const filesList = await listAll(storageRef);
         const deletePromises = filesList.items.map(item => deleteObject(item));
         await Promise.all(deletePromises);
+        console.log(`${filesList.items.length} storage files deleted`);
       } catch (error) {
         console.log("No files to delete or storage error:", error);
       }
       
       // 4. Delete user data from Firestore
       await deleteDoc(doc(db, 'users', currentUser.uid));
+      console.log("User document deleted from Firestore");
       
       // 5. Delete auth user
       await deleteUser(currentUser);
+      console.log("User deleted from Firebase Auth");
       
       toast.success("Account deleted successfully");
     } catch (error: any) {
@@ -220,6 +238,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const newCredits = userData.credits + amount;
     
     try {
+      console.log(`Updating credits for ${currentUser.uid}: ${userData.credits} + ${amount} = ${newCredits}`);
       // Update credits in Firestore
       const userRef = doc(db, 'users', currentUser.uid);
       await setDoc(userRef, { credits: newCredits }, { merge: true });
@@ -233,6 +252,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           creditsBefore: userData.credits,
           creditsAfter: newCredits
         });
+        console.log(`Purchase record created for ${amount} credits`);
       }
       
       // Update local state

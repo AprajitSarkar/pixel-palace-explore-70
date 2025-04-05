@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,21 +22,41 @@ const Login = () => {
   const [resetEmail, setResetEmail] = useState('');
   const [showResetForm, setShowResetForm] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [processingTimeout, setProcessingTimeout] = useState<NodeJS.Timeout | null>(null);
 
   const { login, signUp, loginWithGoogle, resetPassword } = useAuth();
   const navigate = useNavigate();
+
+  // Clear any existing timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (processingTimeout) {
+        clearTimeout(processingTimeout);
+      }
+    };
+  }, [processingTimeout]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError(null);
     
+    // Set a timeout to show an error message if the login takes too long
+    const timeout = setTimeout(() => {
+      setIsLoading(false);
+      setError("Login is taking longer than expected. Please try again.");
+    }, 15000); // 15 seconds timeout
+    
+    setProcessingTimeout(timeout);
+    
     try {
       await login(loginEmail, loginPassword);
+      if (processingTimeout) clearTimeout(processingTimeout);
       toast.success("Welcome back!");
       navigate('/');
     } catch (error: any) {
-      console.error(error);
+      if (processingTimeout) clearTimeout(processingTimeout);
+      console.error("Login error:", error);
       let errorMessage = "Failed to login";
       
       if (error.code === 'auth/invalid-credential') {
@@ -45,6 +65,8 @@ const Login = () => {
         errorMessage = "User not found";
       } else if (error.code === 'auth/wrong-password') {
         errorMessage = "Incorrect password";
+      } else if (error.code === 'auth/network-request-failed') {
+        errorMessage = "Network error. Please check your connection and try again.";
       }
       
       setError(errorMessage);
@@ -69,12 +91,22 @@ const Login = () => {
     
     setIsLoading(true);
     
+    // Set a timeout to show an error message if the signup takes too long
+    const timeout = setTimeout(() => {
+      setIsLoading(false);
+      setError("Signup is taking longer than expected. Please try again.");
+    }, 15000); // 15 seconds timeout
+    
+    setProcessingTimeout(timeout);
+    
     try {
       await signUp(signupEmail, signupPassword);
+      if (processingTimeout) clearTimeout(processingTimeout);
       toast.success("Account created successfully! You've received 50 credits.");
       navigate('/');
     } catch (error: any) {
-      console.error(error);
+      if (processingTimeout) clearTimeout(processingTimeout);
+      console.error("Signup error:", error);
       let errorMessage = "Failed to create account";
       
       if (error.code === 'auth/email-already-in-use') {
@@ -83,6 +115,8 @@ const Login = () => {
         errorMessage = "Invalid email format";
       } else if (error.code === 'auth/weak-password') {
         errorMessage = "Password is too weak";
+      } else if (error.code === 'auth/network-request-failed') {
+        errorMessage = "Network error. Please check your connection and try again.";
       }
       
       setError(errorMessage);
@@ -95,12 +129,22 @@ const Login = () => {
     setIsLoading(true);
     setError(null);
     
+    // Set a timeout for Google login
+    const timeout = setTimeout(() => {
+      setIsLoading(false);
+      setError("Google login is taking longer than expected. Please try again.");
+    }, 20000); // 20 seconds timeout
+    
+    setProcessingTimeout(timeout);
+    
     try {
       await loginWithGoogle();
+      if (processingTimeout) clearTimeout(processingTimeout);
       toast.success("Logged in with Google!");
       navigate('/');
     } catch (error: any) {
-      console.error(error);
+      if (processingTimeout) clearTimeout(processingTimeout);
+      console.error("Google login error:", error);
       setError(error.message || "Failed to login with Google");
     } finally {
       setIsLoading(false);
@@ -193,6 +237,7 @@ const Login = () => {
                         value={loginEmail}
                         onChange={(e) => setLoginEmail(e.target.value)}
                         required
+                        disabled={isLoading}
                       />
                     </div>
                     <div className="space-y-2">
@@ -203,6 +248,7 @@ const Login = () => {
                         value={loginPassword}
                         onChange={(e) => setLoginPassword(e.target.value)}
                         required
+                        disabled={isLoading}
                       />
                     </div>
                     <Button 
@@ -213,6 +259,7 @@ const Login = () => {
                         setShowResetForm(true);
                         setError(null);
                       }}
+                      disabled={isLoading}
                     >
                       Forgot password?
                     </Button>
@@ -231,6 +278,7 @@ const Login = () => {
                         value={signupEmail}
                         onChange={(e) => setSignupEmail(e.target.value)}
                         required
+                        disabled={isLoading}
                       />
                     </div>
                     <div className="space-y-2">
@@ -242,6 +290,7 @@ const Login = () => {
                         onChange={(e) => setSignupPassword(e.target.value)}
                         required
                         minLength={6}
+                        disabled={isLoading}
                       />
                     </div>
                     <div className="space-y-2">
@@ -252,6 +301,7 @@ const Login = () => {
                         value={signupConfirmPassword}
                         onChange={(e) => setSignupConfirmPassword(e.target.value)}
                         required
+                        disabled={isLoading}
                       />
                     </div>
                     <Button type="submit" className="w-full" disabled={isLoading}>
