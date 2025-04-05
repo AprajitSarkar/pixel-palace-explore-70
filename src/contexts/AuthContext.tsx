@@ -13,8 +13,9 @@ import {
   deleteUser
 } from 'firebase/auth';
 import { doc, setDoc, getDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
-import { auth, db, googleProvider } from '@/lib/firebase';
+import { auth, db, storage, googleProvider } from '@/lib/firebase';
 import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 
 interface UserData {
   uid: string;
@@ -52,7 +53,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [userData, setUserData] = useState<UserData | null>(null);
   const [loading, setLoading] = useState(true);
-  const { toast } = useToast();
+  const { toast: uiToast } = useToast();
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -75,17 +76,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               credits: 50 // New users get 50 credits
             };
             
-            await setDoc(userRef, {
-              ...newUser,
-              createdAt: serverTimestamp()
-            });
-            
-            setUserData(newUser);
-            toast({
-              title: "Welcome!",
-              description: "You've received 50 credits as a new user!",
-              variant: "default",
-            });
+            try {
+              await setDoc(userRef, {
+                ...newUser,
+                createdAt: serverTimestamp()
+              });
+              
+              setUserData(newUser);
+              toast("Welcome!", {
+                description: "You've received 50 credits as a new user!",
+              });
+            } catch (error) {
+              console.error("Error creating user document:", error);
+            }
           }
         } catch (error) {
           console.error("Error fetching user data:", error);
@@ -98,52 +101,89 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
 
     return unsubscribe;
-  }, [toast]);
+  }, []);
 
   const signUp = async (email: string, password: string) => {
-    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-    
-    // Create user document with initial credits
-    const userRef = doc(db, 'users', userCredential.user.uid);
-    await setDoc(userRef, {
-      uid: userCredential.user.uid,
-      email: userCredential.user.email,
-      displayName: null,
-      photoURL: null,
-      credits: 50, // New users get 50 credits
-      createdAt: serverTimestamp()
-    });
+    try {
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      
+      // Create user document with initial credits
+      const userRef = doc(db, 'users', userCredential.user.uid);
+      await setDoc(userRef, {
+        uid: userCredential.user.uid,
+        email: userCredential.user.email,
+        displayName: null,
+        photoURL: null,
+        credits: 50, // New users get 50 credits
+        createdAt: serverTimestamp()
+      });
+      
+      return;
+    } catch (error: any) {
+      console.error("Error during sign up:", error);
+      throw error;
+    }
   };
 
   const login = async (email: string, password: string) => {
-    await signInWithEmailAndPassword(auth, email, password);
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+    } catch (error: any) {
+      console.error("Error during login:", error);
+      throw error;
+    }
   };
 
   const loginWithGoogle = async () => {
-    await signInWithPopup(auth, googleProvider);
+    try {
+      await signInWithPopup(auth, googleProvider);
+    } catch (error: any) {
+      console.error("Error during Google login:", error);
+      throw error;
+    }
   };
 
   const logout = async () => {
-    await signOut(auth);
+    try {
+      await signOut(auth);
+    } catch (error: any) {
+      console.error("Error during logout:", error);
+      throw error;
+    }
   };
 
   const resetPassword = async (email: string) => {
-    await sendPasswordResetEmail(auth, email);
+    try {
+      await sendPasswordResetEmail(auth, email);
+    } catch (error: any) {
+      console.error("Error sending reset password email:", error);
+      throw error;
+    }
   };
 
   const changePassword = async (newPassword: string) => {
     if (!currentUser) throw new Error("No authenticated user");
-    await updatePassword(currentUser, newPassword);
+    try {
+      await updatePassword(currentUser, newPassword);
+    } catch (error: any) {
+      console.error("Error changing password:", error);
+      throw error;
+    }
   };
 
   const deleteAccount = async () => {
     if (!currentUser) throw new Error("No authenticated user");
     
-    // Delete user data from Firestore
-    await deleteDoc(doc(db, 'users', currentUser.uid));
-    
-    // Delete auth user
-    await deleteUser(currentUser);
+    try {
+      // Delete user data from Firestore
+      await deleteDoc(doc(db, 'users', currentUser.uid));
+      
+      // Delete auth user
+      await deleteUser(currentUser);
+    } catch (error: any) {
+      console.error("Error deleting account:", error);
+      throw error;
+    }
   };
 
   const updateUserCredits = async (amount: number) => {
@@ -151,15 +191,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     
     const newCredits = userData.credits + amount;
     
-    // Update credits in Firestore
-    const userRef = doc(db, 'users', currentUser.uid);
-    await setDoc(userRef, { credits: newCredits }, { merge: true });
-    
-    // Update local state
-    setUserData({
-      ...userData,
-      credits: newCredits
-    });
+    try {
+      // Update credits in Firestore
+      const userRef = doc(db, 'users', currentUser.uid);
+      await setDoc(userRef, { credits: newCredits }, { merge: true });
+      
+      // Update local state
+      setUserData({
+        ...userData,
+        credits: newCredits
+      });
+    } catch (error: any) {
+      console.error("Error updating user credits:", error);
+      throw error;
+    }
     
     // Return void to match the interface
     return;

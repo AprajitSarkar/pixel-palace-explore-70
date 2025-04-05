@@ -9,6 +9,8 @@ import { Google } from '@/components/icons';
 import MobileNavBar from '@/components/MobileNavBar';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { AlertCircle } from "lucide-react";
 
 const Login = () => {
   const [loginEmail, setLoginEmail] = useState('');
@@ -19,6 +21,7 @@ const Login = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [resetEmail, setResetEmail] = useState('');
   const [showResetForm, setShowResetForm] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const { login, signUp, loginWithGoogle, resetPassword } = useAuth();
   const navigate = useNavigate();
@@ -26,6 +29,7 @@ const Login = () => {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    setError(null);
     
     try {
       await login(loginEmail, loginPassword);
@@ -33,7 +37,17 @@ const Login = () => {
       navigate('/');
     } catch (error: any) {
       console.error(error);
-      toast.error(error.message || "Failed to login");
+      let errorMessage = "Failed to login";
+      
+      if (error.code === 'auth/invalid-credential') {
+        errorMessage = "Invalid email or password";
+      } else if (error.code === 'auth/user-not-found') {
+        errorMessage = "User not found";
+      } else if (error.code === 'auth/wrong-password') {
+        errorMessage = "Incorrect password";
+      }
+      
+      setError(errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -41,9 +55,15 @@ const Login = () => {
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError(null);
     
     if (signupPassword !== signupConfirmPassword) {
-      toast.error("Passwords do not match");
+      setError("Passwords do not match");
+      return;
+    }
+    
+    if (signupPassword.length < 6) {
+      setError("Password must be at least 6 characters long");
       return;
     }
     
@@ -55,7 +75,17 @@ const Login = () => {
       navigate('/');
     } catch (error: any) {
       console.error(error);
-      toast.error(error.message || "Failed to create account");
+      let errorMessage = "Failed to create account";
+      
+      if (error.code === 'auth/email-already-in-use') {
+        errorMessage = "Email is already in use";
+      } else if (error.code === 'auth/invalid-email') {
+        errorMessage = "Invalid email format";
+      } else if (error.code === 'auth/weak-password') {
+        errorMessage = "Password is too weak";
+      }
+      
+      setError(errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -63,6 +93,7 @@ const Login = () => {
 
   const handleGoogleLogin = async () => {
     setIsLoading(true);
+    setError(null);
     
     try {
       await loginWithGoogle();
@@ -70,7 +101,7 @@ const Login = () => {
       navigate('/');
     } catch (error: any) {
       console.error(error);
-      toast.error(error.message || "Failed to login with Google");
+      setError(error.message || "Failed to login with Google");
     } finally {
       setIsLoading(false);
     }
@@ -79,6 +110,7 @@ const Login = () => {
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    setError(null);
     
     try {
       await resetPassword(resetEmail);
@@ -86,7 +118,15 @@ const Login = () => {
       setShowResetForm(false);
     } catch (error: any) {
       console.error(error);
-      toast.error(error.message || "Failed to send password reset email");
+      let errorMessage = "Failed to send password reset email";
+      
+      if (error.code === 'auth/user-not-found') {
+        errorMessage = "No account found with this email";
+      } else if (error.code === 'auth/invalid-email') {
+        errorMessage = "Invalid email format";
+      }
+      
+      setError(errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -103,6 +143,13 @@ const Login = () => {
             </CardDescription>
           </CardHeader>
           <CardContent>
+            {error && (
+              <Alert variant="destructive" className="mb-4">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
+            
             {showResetForm ? (
               <form onSubmit={handleResetPassword} className="space-y-4">
                 <div className="space-y-2">
@@ -122,7 +169,10 @@ const Login = () => {
                   type="button" 
                   variant="ghost" 
                   className="w-full" 
-                  onClick={() => setShowResetForm(false)}
+                  onClick={() => {
+                    setShowResetForm(false);
+                    setError(null);
+                  }}
                 >
                   Back to Login
                 </Button>
@@ -159,7 +209,10 @@ const Login = () => {
                       type="button" 
                       variant="link" 
                       className="p-0 h-auto text-sm"
-                      onClick={() => setShowResetForm(true)}
+                      onClick={() => {
+                        setShowResetForm(true);
+                        setError(null);
+                      }}
                     >
                       Forgot password?
                     </Button>
