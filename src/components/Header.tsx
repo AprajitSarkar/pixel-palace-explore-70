@@ -7,6 +7,16 @@ import { Button } from "@/components/ui/button";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useAuth } from '@/contexts/AuthContext';
 import CategoryDrawer from './CategoryDrawer';
+import ProfileMenu from './ProfileMenu';
+import {
+  NavigationMenu,
+  NavigationMenuContent,
+  NavigationMenuItem,
+  NavigationMenuLink,
+  NavigationMenuList,
+  NavigationMenuTrigger,
+  navigationMenuTriggerStyle,
+} from "@/components/ui/navigation-menu"
 
 interface HeaderProps {
   onSearch: (query: string) => void;
@@ -21,26 +31,13 @@ const Header: React.FC<HeaderProps> = ({
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [menuOpen, setMenuOpen] = useState(false);
-  const { currentUser, logout } = useAuth();
+  const { currentUser } = useAuth();
   const isMobile = useIsMobile();
   const navigate = useNavigate();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onSearch(searchQuery);
-  };
-
-  const handleLogin = () => {
-    navigate('/login');
-  };
-
-  const handleLogout = async () => {
-    try {
-      await logout();
-      navigate('/');
-    } catch (error) {
-      console.error('Logout failed:', error);
-    }
   };
 
   return (
@@ -59,34 +56,55 @@ const Header: React.FC<HeaderProps> = ({
         </div>
 
         {!isMobile && (
-          <form onSubmit={handleSubmit} className="flex-1 max-w-md mx-4">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-              <Input
-                type="search"
-                placeholder="Search videos..."
-                className="pl-10 bg-secondary/70 border-primary/10"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-            </div>
-          </form>
+          <>
+            <form onSubmit={handleSubmit} className="flex-1 max-w-md mx-4">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                <Input
+                  type="search"
+                  placeholder="Search videos..."
+                  className="pl-10 bg-secondary/70 border-primary/10"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </div>
+            </form>
+            
+            {currentUser && (
+              <NavigationMenu className="hidden md:flex mr-4">
+                <NavigationMenuList>
+                  <NavigationMenuItem>
+                    <NavigationMenuLink 
+                      className={navigationMenuTriggerStyle()}
+                      onClick={() => navigate('/')}
+                    >
+                      Home
+                    </NavigationMenuLink>
+                  </NavigationMenuItem>
+                  <NavigationMenuItem>
+                    <NavigationMenuLink 
+                      className={navigationMenuTriggerStyle()}
+                      onClick={() => navigate('/search')}
+                    >
+                      Search
+                    </NavigationMenuLink>
+                  </NavigationMenuItem>
+                  <NavigationMenuItem>
+                    <NavigationMenuLink 
+                      className={navigationMenuTriggerStyle()}
+                      onClick={() => navigate('/settings')}
+                    >
+                      Settings
+                    </NavigationMenuLink>
+                  </NavigationMenuItem>
+                </NavigationMenuList>
+              </NavigationMenu>
+            )}
+          </>
         )}
 
         <div className="flex items-center space-x-2">
-          {!isMobile && (
-            <>
-              {currentUser ? (
-                <Button variant="outline" size="sm" className="rounded-full text-sm" onClick={handleLogout}>
-                  Log out
-                </Button>
-              ) : (
-                <Button variant="outline" size="sm" className="rounded-full text-sm" onClick={handleLogin}>
-                  Log in
-                </Button>
-              )}
-            </>
-          )}
+          {!isMobile && <ProfileMenu />}
           
           {isMobile && (
             <Button variant="ghost" size="icon" onClick={() => setMenuOpen(!menuOpen)}>

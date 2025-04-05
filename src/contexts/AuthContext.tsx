@@ -12,7 +12,8 @@ import {
   updatePassword,
   deleteUser
 } from 'firebase/auth';
-import { doc, setDoc, getDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, setDoc, getDoc, deleteDoc, serverTimestamp, collection, query, where, getDocs } from 'firebase/firestore';
+import { ref, deleteObject, listAll } from 'firebase/storage';
 import { auth, db, storage, googleProvider } from '@/lib/firebase';
 import { useToast } from "@/hooks/use-toast";
 import { toast } from "sonner";
@@ -53,7 +54,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [userData, setUserData] = useState<UserData | null>(null);
   const [loading, setLoading] = useState(true);
-  const { toast: uiToast } = useToast();
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -175,11 +175,39 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!currentUser) throw new Error("No authenticated user");
     
     try {
-      // Delete user data from Firestore
+      // 1. Delete user's likes
+      const likesRef = collection(db, 'likes');
+      const likesQuery = query(likesRef, where("userId", "==", currentUser.uid));
+      const likesSnapshot = await getDocs(likesQuery);
+      
+      const likesDeletePromises = likesSnapshot.docs.map(doc => deleteDoc(doc.ref));
+      await Promise.all(likesDeletePromises);
+      
+      // 2. Delete user's history
+      const historyRef = collection(db, 'history');
+      const historyQuery = query(historyRef, where("userId", "==", currentUser.uid));
+      const historySnapshot = await getDocs(historyQuery);
+      
+      const historyDeletePromises = historySnapshot.docs.map(doc => deleteDoc(doc.ref));
+      await Promise.all(historyDeletePromises);
+      
+      // 3. Delete user's storage files
+      const storageRef = ref(storage, `users/${currentUser.uid}`);
+      try {
+        const filesList = await listAll(storageRef);
+        const deletePromises = filesList.items.map(item => deleteObject(item));
+        await Promise.all(deletePromises);
+      } catch (error) {
+        console.log("No files to delete or storage error:", error);
+      }
+      
+      // 4. Delete user data from Firestore
       await deleteDoc(doc(db, 'users', currentUser.uid));
       
-      // Delete auth user
+      // 5. Delete auth user
       await deleteUser(currentUser);
+      
+      toast.success("Account deleted successfully");
     } catch (error: any) {
       console.error("Error deleting account:", error);
       throw error;
@@ -196,6 +224,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const userRef = doc(db, 'users', currentUser.uid);
       await setDoc(userRef, { credits: newCredits }, { merge: true });
       
+      // Save purchase record if it's a positive amount (purchase)
+      if (amount > 0) {
+        const purchaseRef = collection(db, 'users', currentUser.uid, 'purchases');
+        await setDoc(doc(purchaseRef), {
+          amount: amount,
+          timestamp: serverTimestamp(),
+          creditsBefore: userData.credits,
+          creditsAfter: newCredits
+        });
+      }
+      
       // Update local state
       setUserData({
         ...userData,
@@ -206,7 +245,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       throw error;
     }
     
-    // Return void to match the interface
     return;
   };
 

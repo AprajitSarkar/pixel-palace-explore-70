@@ -1,275 +1,231 @@
 
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import Header from '@/components/Header';
+import MobileNavBar from '@/components/MobileNavBar';
 import { Button } from "@/components/ui/button";
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from "sonner";
-import MobileNavBar from '@/components/MobileNavBar';
-import Header from '@/components/Header';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Coins, Gift, CreditCard, ArrowRight, ShoppingCart, Award, Video } from 'lucide-react';
-import { showRewardedAd } from '@/services/adService';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Coins, Gift, Video, CreditCard, Diamond } from 'lucide-react';
+
+interface CreditPackage {
+  id: string;
+  title: string;
+  credits: number;
+  price: string;
+  icon: React.ReactNode;
+  popular?: boolean;
+}
 
 const Shop = () => {
-  const { currentUser, userData, updateUserCredits } = useAuth();
-  const [isLoadingReward, setIsLoadingReward] = useState(false);
-  const [rewardedAdsWatched, setRewardedAdsWatched] = useState(0);
+  const { userData, updateUserCredits } = useAuth();
+  const [isLoading, setIsLoading] = useState<string | null>(null);
   const navigate = useNavigate();
 
-  // For a real app, you would track this in Firestore
-  const maxDailyRewardedAds = 5;
-
-  React.useEffect(() => {
-    if (!currentUser) {
-      navigate('/login');
-    }
-  }, [currentUser, navigate]);
-
-  const watchRewardedAd = async () => {
-    if (rewardedAdsWatched >= maxDailyRewardedAds) {
-      toast.error("You've reached your daily limit for rewarded ads");
-      return;
-    }
-    
-    setIsLoadingReward(true);
-    
-    try {
-      // In a real app, this would show an actual rewarded ad
-      await showRewardedAd();
-      
-      // Award credits
-      await updateUserCredits(20);
-      
-      setRewardedAdsWatched(prev => prev + 1);
-      toast.success("You earned 20 credits!");
-    } catch (error) {
-      console.error("Error showing rewarded ad:", error);
-      toast.error("Failed to show ad");
-    } finally {
-      setIsLoadingReward(false);
-    }
-  };
-
-  // This would connect to Google Play Billing in a real Capacitor app
-  const handlePurchaseCredits = (amount: number, price: string) => {
-    toast.info(`This would open Google Play billing for ${price}`);
-    console.log(`Purchase ${amount} credits for ${price}`);
-    // In a real app, you would connect to Google Play Billing API here
-  };
-
-  const handleDailyCheckIn = async () => {
-    try {
-      await updateUserCredits(10);
-      toast.success("Daily check-in successful! You earned 10 credits.");
-      
-      // In a real app, you would track this in Firestore so users can only check in once per day
-    } catch (error) {
-      toast.error("Failed to process daily check-in");
-    }
-  };
-
-  // Premium subscription tiers
-  const premiumTiers = [
+  const creditPackages: CreditPackage[] = [
     {
-      name: "Monthly Premium",
-      price: "$4.99/month",
-      benefits: ["No ads", "Unlimited downloads", "500 credits monthly", "Priority support"]
+      id: 'starter',
+      title: 'Starter Pack',
+      credits: 100,
+      price: '$2.99',
+      icon: <Coins className="h-10 w-10 text-amber-500" />
     },
     {
-      name: "Annual Premium",
-      price: "$49.99/year",
-      discount: "Save 17%",
-      benefits: ["No ads", "Unlimited downloads", "1000 credits monthly", "Priority support", "Early access to new features"]
+      id: 'popular',
+      title: 'Popular Pack',
+      credits: 500,
+      price: '$9.99',
+      icon: <Gift className="h-10 w-10 text-indigo-500" />,
+      popular: true
+    },
+    {
+      id: 'pro',
+      title: 'Pro Pack',
+      credits: 1200,
+      price: '$19.99',
+      icon: <Video className="h-10 w-10 text-blue-500" />
+    },
+    {
+      id: 'ultimate',
+      title: 'Ultimate Pack',
+      credits: 3000,
+      price: '$39.99',
+      icon: <Diamond className="h-10 w-10 text-purple-500" />
     }
   ];
 
-  if (!userData) {
-    return null; // Loading state or redirect handled by useEffect
-  }
+  const handlePurchase = async (pack: CreditPackage) => {
+    setIsLoading(pack.id);
+    
+    try {
+      // Simulating a purchase process
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      // Update user's credits
+      await updateUserCredits(pack.credits);
+      
+      toast.success(`You've purchased ${pack.credits} credits!`);
+      navigate('/credits');
+    } catch (error) {
+      console.error('Purchase failed:', error);
+      toast.error('Failed to complete purchase. Please try again.');
+    } finally {
+      setIsLoading(null);
+    }
+  };
+
+  const handleRewardedAd = async () => {
+    setIsLoading('ad');
+    
+    try {
+      // Simulating a rewarded ad viewing
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      // Reward user with 10 credits
+      await updateUserCredits(10);
+      
+      toast.success("You've earned 10 credits from watching an ad!");
+    } catch (error) {
+      console.error('Rewarded ad failed:', error);
+      toast.error('Failed to reward credits. Please try again.');
+    } finally {
+      setIsLoading(null);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background">
       <Header onSearch={() => {}} />
-      <div className="container px-4 py-4 pb-20">
-        <div className="flex flex-col items-center mb-6">
-          <div className="bg-primary/20 p-4 rounded-full mb-2">
-            <ShoppingCart className="h-8 w-8 text-primary" />
+      
+      <main className="container px-4 py-6 max-w-5xl">
+        <div className="flex flex-col items-start justify-between mb-6 md:flex-row md:items-center">
+          <div>
+            <h1 className="text-3xl font-bold mb-2">Credit Shop</h1>
+            <p className="text-muted-foreground">
+              Purchase credits to download high-quality videos
+            </p>
           </div>
-          <h1 className="text-2xl font-bold">Shop</h1>
-          <div className="text-4xl font-bold my-2">
-            {userData.credits} <span className="text-primary">credits</span>
+          
+          <div className="mt-4 md:mt-0 glass-card px-4 py-2 rounded-full">
+            <p className="text-sm font-medium">
+              Your balance: <span className="text-primary font-bold">{userData?.credits || 0}</span> credits
+            </p>
           </div>
-          <p className="text-sm text-muted-foreground text-center max-w-md">
-            Credits are used to download videos. Each video download costs 20 credits.
-          </p>
         </div>
         
-        {/* Daily Rewards */}
-        <h2 className="text-xl font-semibold mb-3">Free Credits</h2>
-        <div className="grid gap-4 md:grid-cols-2 mb-8">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <Gift className="mr-2 h-5 w-5 text-primary" /> 
-                Free Ad Credits
-              </CardTitle>
-              <CardDescription>
-                Watch video ads to earn free credits
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="text-center mb-4">
-                <div className="text-3xl font-semibold">20</div>
-                <div className="text-sm text-muted-foreground">credits per ad</div>
-              </div>
-              <div className="text-xs text-muted-foreground mb-4 text-center">
-                {rewardedAdsWatched}/{maxDailyRewardedAds} ads watched today
-              </div>
-            </CardContent>
-            <CardFooter>
-              <Button 
-                className="w-full" 
-                onClick={watchRewardedAd} 
-                disabled={isLoadingReward || rewardedAdsWatched >= maxDailyRewardedAds}
-              >
-                {isLoadingReward ? "Loading Ad..." : "Watch Ad for Credits"}
-              </Button>
-            </CardFooter>
-          </Card>
-          
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <Award className="mr-2 h-5 w-5 text-primary" />
-                Daily Check-in
-              </CardTitle>
-              <CardDescription>
-                Check in daily for free credits
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="text-center mb-4">
-                <div className="text-3xl font-semibold">10</div>
-                <div className="text-sm text-muted-foreground">credits per day</div>
-              </div>
-              <div className="flex justify-center space-x-1 mb-4">
-                {Array.from({ length: 7 }).map((_, i) => (
-                  <div 
-                    key={i} 
-                    className={`w-7 h-7 rounded-full flex items-center justify-center text-xs 
-                      ${i === 0 ? 'bg-primary text-primary-foreground' : 'bg-secondary/50 text-muted-foreground'}`}
-                  >
-                    {i + 1}
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-            <CardFooter>
-              <Button className="w-full" onClick={handleDailyCheckIn}>
-                Daily Check-in
-              </Button>
-            </CardFooter>
-          </Card>
-        </div>
-        
-        {/* Credit Packages */}
-        <h2 className="text-xl font-semibold mb-3">Credit Packages</h2>
-        <div className="grid grid-cols-2 gap-4 mb-8 md:grid-cols-3">
-          <Card className="relative overflow-hidden">
-            <CardHeader className="py-4">
-              <CardTitle className="text-lg">Starter</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-3xl font-semibold">100</p>
-              <p className="text-sm text-muted-foreground">credits</p>
-              <p className="text-lg font-medium mt-4">$0.99</p>
-            </CardContent>
-            <CardFooter>
-              <Button 
-                variant="outline" 
-                className="w-full" 
-                onClick={() => handlePurchaseCredits(100, "$0.99")}
-              >
-                Purchase
-              </Button>
-            </CardFooter>
-          </Card>
-          
-          <Card className="relative overflow-hidden">
-            <CardHeader className="py-4">
-              <CardTitle className="text-lg">Plus</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-3xl font-semibold">500</p>
-              <p className="text-sm text-muted-foreground">credits</p>
-              <p className="text-lg font-medium mt-4">$3.99</p>
-            </CardContent>
-            <CardFooter>
-              <Button 
-                variant="outline" 
-                className="w-full" 
-                onClick={() => handlePurchaseCredits(500, "$3.99")}
-              >
-                Purchase
-              </Button>
-            </CardFooter>
-          </Card>
-          
-          <Card className="relative overflow-hidden">
-            <div className="absolute top-0 right-0 bg-primary text-primary-foreground px-2 py-1 text-xs font-medium">
-              Best Value
-            </div>
-            <CardHeader className="py-4">
-              <CardTitle className="text-lg">Premium</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-3xl font-semibold">1000</p>
-              <p className="text-sm text-muted-foreground">credits</p>
-              <p className="text-lg font-medium mt-4">$6.99</p>
-            </CardContent>
-            <CardFooter>
-              <Button 
-                className="w-full" 
-                onClick={() => handlePurchaseCredits(1000, "$6.99")}
-              >
-                Purchase
-              </Button>
-            </CardFooter>
-          </Card>
-        </div>
-        
-        {/* Premium Subscription */}
-        <h2 className="text-xl font-semibold mb-3">Premium Membership</h2>
-        <div className="grid gap-4 md:grid-cols-2 mb-8">
-          {premiumTiers.map((tier, index) => (
-            <Card key={index} className={`relative overflow-hidden ${index === 1 ? 'border-primary/50' : ''}`}>
-              {index === 1 && (
-                <div className="absolute top-0 right-0 bg-primary text-primary-foreground px-2 py-1 text-xs font-medium">
-                  {tier.discount}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
+          {creditPackages.map((pack) => (
+            <Card 
+              key={pack.id} 
+              className={`relative overflow-hidden ${pack.popular ? 'border-primary shadow-md' : ''}`}
+            >
+              {pack.popular && (
+                <div className="absolute top-0 right-0 bg-primary text-primary-foreground px-3 py-1 text-xs font-medium">
+                  Popular
                 </div>
               )}
+              
               <CardHeader>
-                <CardTitle>{tier.name}</CardTitle>
-                <CardDescription>{tier.price}</CardDescription>
+                <div className="flex justify-center mb-4">
+                  {pack.icon}
+                </div>
+                <CardTitle className="text-center">{pack.title}</CardTitle>
+                <CardDescription className="text-center">
+                  Get {pack.credits} credits
+                </CardDescription>
               </CardHeader>
-              <CardContent>
-                <ul className="space-y-2">
-                  {tier.benefits.map((benefit, i) => (
-                    <li key={i} className="flex items-center">
-                      <Video className="h-4 w-4 mr-2 text-primary" />
-                      {benefit}
-                    </li>
-                  ))}
-                </ul>
+              
+              <CardContent className="text-center">
+                <div className="text-3xl font-bold mb-2">{pack.price}</div>
+                <p className="text-sm text-muted-foreground">
+                  {(pack.credits / 50).toFixed(0)} video downloads
+                </p>
               </CardContent>
+              
               <CardFooter>
-                <Button className="w-full">Subscribe</Button>
+                <Button 
+                  className="w-full" 
+                  onClick={() => handlePurchase(pack)}
+                  disabled={isLoading === pack.id}
+                >
+                  {isLoading === pack.id ? 'Processing...' : 'Purchase'}
+                </Button>
               </CardFooter>
             </Card>
           ))}
         </div>
         
-      </div>
+        <div className="my-10">
+          <h2 className="text-2xl font-bold mb-6">Free Credits</h2>
+          
+          <Card className="bg-gradient-to-r from-amber-50 to-yellow-50 dark:from-amber-950/20 dark:to-yellow-950/20">
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <Gift className="h-5 w-5 mr-2 text-amber-500" />
+                Watch an Ad
+              </CardTitle>
+              <CardDescription>
+                Watch a short advertisement to earn free credits
+              </CardDescription>
+            </CardHeader>
+            
+            <CardContent>
+              <p className="text-sm">
+                You can earn <span className="font-bold">10 credits</span> for each rewarded ad you watch.
+                There's no daily limit, so you can watch as many ads as you want!
+              </p>
+            </CardContent>
+            
+            <CardFooter>
+              <Button 
+                variant="outline" 
+                className="w-full"
+                onClick={handleRewardedAd}
+                disabled={isLoading === 'ad'}
+              >
+                {isLoading === 'ad' ? 'Loading Ad...' : 'Watch Ad for 10 Credits'}
+              </Button>
+            </CardFooter>
+          </Card>
+        </div>
+        
+        <div className="mt-10 mb-20">
+          <h2 className="text-2xl font-bold mb-6">Payment Methods</h2>
+          
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <CreditCard className="h-5 w-5 mr-2" />
+                Secure Payments
+              </CardTitle>
+              <CardDescription>
+                We accept various payment methods for your convenience
+              </CardDescription>
+            </CardHeader>
+            
+            <CardContent className="flex flex-wrap gap-4 justify-center">
+              <div className="w-16 h-10 bg-gray-200 dark:bg-gray-800 rounded flex items-center justify-center">
+                Visa
+              </div>
+              <div className="w-16 h-10 bg-gray-200 dark:bg-gray-800 rounded flex items-center justify-center">
+                MC
+              </div>
+              <div className="w-16 h-10 bg-gray-200 dark:bg-gray-800 rounded flex items-center justify-center">
+                PayPal
+              </div>
+              <div className="w-16 h-10 bg-gray-200 dark:bg-gray-800 rounded flex items-center justify-center">
+                Stripe
+              </div>
+            </CardContent>
+            
+            <CardFooter className="text-xs text-muted-foreground text-center px-6">
+              All transactions are secure and encrypted. By purchasing credits, you agree to our Terms of Service and Privacy Policy.
+            </CardFooter>
+          </Card>
+        </div>
+      </main>
+      
       <MobileNavBar />
     </div>
   );
