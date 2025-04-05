@@ -7,9 +7,10 @@ import { useIsMobile } from '@/hooks/use-mobile';
 interface VideosGridProps {
   videos: PixabayVideo[];
   isLoading: boolean;
+  autoPlayEnabled?: boolean;
 }
 
-const VideosGrid: React.FC<VideosGridProps> = ({ videos, isLoading }) => {
+const VideosGrid: React.FC<VideosGridProps> = ({ videos, isLoading, autoPlayEnabled = false }) => {
   const isMobile = useIsMobile();
 
   if (isLoading) {
@@ -46,7 +47,7 @@ const VideosGrid: React.FC<VideosGridProps> = ({ videos, isLoading }) => {
   return (
     <div className={`container px-4 pt-4 pb-12 ${isMobile ? 'grid grid-cols-1 gap-4' : 'video-grid'}`}>
       {videos.map((video) => (
-        <VideoCard key={video.id} video={video} />
+        <VideoCard key={video.id} video={video} autoPlayEnabled={autoPlayEnabled} />
       ))}
     </div>
   );

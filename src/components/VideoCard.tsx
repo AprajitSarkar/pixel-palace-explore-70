@@ -1,23 +1,63 @@
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Play, Pause, Volume, Volume2, Heart, Download } from 'lucide-react';
 import { Button } from "@/components/ui/button";
-import { PixabayVideo, incrementVideoViews, downloadVideo } from '@/services/pixabayService';
+import { PixabayVideo, incrementVideoViews } from '@/services/pixabayService';
 import { isVideoLiked, toggleLikedVideo } from '@/stores/likedVideosStore';
 import { toast } from "sonner";
 import { showAdInterstitial } from '@/services/adService';
+import { useAuth } from '@/contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
 
 interface VideoCardProps {
   video: PixabayVideo;
+  autoPlayEnabled?: boolean;
 }
 
-const VideoCard: React.FC<VideoCardProps> = ({ video }) => {
+const VideoCard: React.FC<VideoCardProps> = ({ video, autoPlayEnabled = false }) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(true);
   const [isHovered, setIsHovered] = useState(false);
   const [liked, setLiked] = useState(isVideoLiked(video.id));
   const [isDownloading, setIsDownloading] = useState(false);
+  const { currentUser, userData, updateUserCredits } = useAuth();
   const videoRef = useRef<HTMLVideoElement>(null);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          // If the video is visible and autoplay is enabled
+          if (entry.isIntersecting && autoPlayEnabled) {
+            if (videoRef.current) {
+              videoRef.current.play().catch(err => {
+                // Auto-play was prevented, which is expected if user hasn't interacted with the page
+                console.log("Auto-play prevented:", err);
+              });
+              setIsPlaying(true);
+            }
+          } else {
+            if (videoRef.current && isPlaying) {
+              videoRef.current.pause();
+              setIsPlaying(false);
+            }
+          }
+        });
+      },
+      { threshold: 0.7 } // Video will play when 70% visible
+    );
+
+    if (videoRef.current) {
+      observer.observe(videoRef.current);
+    }
+
+    return () => {
+      if (videoRef.current) {
+        observer.unobserve(videoRef.current);
+      }
+    };
+  }, [autoPlayEnabled, isPlaying]);
 
   const handlePlayPause = () => {
     if (videoRef.current) {
@@ -50,12 +90,30 @@ const VideoCard: React.FC<VideoCardProps> = ({ video }) => {
   };
 
   const handleDownload = async () => {
+    if (!currentUser) {
+      // Redirect to login if not authenticated
+      toast.error("Please login to download videos");
+      navigate('/login');
+      return;
+    }
+    
+    // Check if user has enough credits
+    if (userData && userData.credits < 20) {
+      toast.error("Not enough credits. You need 20 credits to download a video.");
+      navigate('/credits');
+      return;
+    }
+    
     setIsDownloading(true);
     try {
       // Show ad on download
       showAdInterstitial();
       
-      const downloadUrl = await downloadVideo(video);
+      // Deduct credits
+      await updateUserCredits(-20);
+      
+      // Get download URL
+      const downloadUrl = video.videos.medium.url;
       
       // Create a temporary anchor element to trigger the download
       const a = document.createElement('a');
@@ -65,7 +123,7 @@ const VideoCard: React.FC<VideoCardProps> = ({ video }) => {
       a.click();
       document.body.removeChild(a);
       
-      toast.success("Download started");
+      toast.success("Download started. 20 credits used.");
     } catch (error) {
       toast.error("Download failed");
       console.error("Download error:", error);
@@ -91,7 +149,7 @@ const VideoCard: React.FC<VideoCardProps> = ({ video }) => {
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => {
         setIsHovered(false);
-        if (isPlaying) {
+        if (isPlaying && !autoPlayEnabled) {
           setIsPlaying(false);
           videoRef.current?.pause();
         }

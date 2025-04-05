@@ -17,6 +17,7 @@ const Index = () => {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [showSplash, setShowSplash] = useState(true);
+  const [autoPlayEnabled, setAutoPlayEnabled] = useState(localStorage.getItem('autoplay_enabled') === 'true');
   const { toast } = useToast();
 
   useEffect(() => {
@@ -28,6 +29,17 @@ const Index = () => {
     
     // Show banner ad
     showAdBanner();
+    
+    // Listen for autoplay setting changes
+    const handleStorageChange = () => {
+      setAutoPlayEnabled(localStorage.getItem('autoplay_enabled') === 'true');
+    };
+    
+    window.addEventListener('storage', handleStorageChange);
+    
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+    };
   }, []);
 
   const loadVideos = useCallback(async () => {
@@ -120,7 +132,11 @@ const Index = () => {
           selectedCategory={selectedCategory}
           onSelectCategory={handleCategorySelect}
         />
-        <VideosGrid videos={videos} isLoading={isLoading} />
+        <VideosGrid 
+          videos={videos} 
+          isLoading={isLoading} 
+          autoPlayEnabled={autoPlayEnabled}
+        />
       </main>
       <MobileNavBar />
     </div>

@@ -1,20 +1,40 @@
 
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useToast } from "@/hooks/use-toast";
 import Header from '@/components/Header';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { Info, ExternalLink } from "lucide-react";
+import { Info, ExternalLink, User, Bell, LogOut, Trash2, AlertTriangle, Volume2 } from "lucide-react";
 import MobileNavBar from '@/components/MobileNavBar';
 import { toast } from "sonner";
+import { useAuth } from '@/contexts/AuthContext';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 
 const Settings = () => {
   const [customApiKey, setCustomApiKey] = useState<string>(
     localStorage.getItem('pixabay_api_key') || ""
   );
+  const [autoPlayEnabled, setAutoPlayEnabled] = useState<boolean>(
+    localStorage.getItem('autoplay_enabled') === 'true'
+  );
+  const [soundEnabled, setSoundEnabled] = useState<boolean>(
+    localStorage.getItem('sound_enabled') === 'true'
+  );
+  
   const { toast: uiToast } = useToast();
+  const { currentUser, userData, logout, deleteAccount } = useAuth();
+  const navigate = useNavigate();
 
   const handleApiKeySubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -33,6 +53,42 @@ const Settings = () => {
     setCustomApiKey("");
     toast.info("Reset to default API key");
   };
+  
+  const toggleAutoPlay = () => {
+    const newValue = !autoPlayEnabled;
+    setAutoPlayEnabled(newValue);
+    localStorage.setItem('autoplay_enabled', newValue.toString());
+    toast.info(newValue ? "Autoplay enabled" : "Autoplay disabled");
+  };
+  
+  const toggleSound = () => {
+    const newValue = !soundEnabled;
+    setSoundEnabled(newValue);
+    localStorage.setItem('sound_enabled', newValue.toString());
+    toast.info(newValue ? "Sound enabled" : "Sound disabled");
+  };
+  
+  const handleLogout = async () => {
+    try {
+      await logout();
+      toast.success("Logged out successfully");
+      navigate('/');
+    } catch (error) {
+      console.error("Logout failed:", error);
+      toast.error("Failed to log out");
+    }
+  };
+  
+  const handleDeleteAccount = async () => {
+    try {
+      await deleteAccount();
+      toast.success("Account deleted successfully");
+      navigate('/');
+    } catch (error) {
+      console.error("Delete account failed:", error);
+      toast.error("Failed to delete account");
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -42,6 +98,128 @@ const Settings = () => {
           <h1 className="text-2xl font-bold mb-6">Settings</h1>
           
           <div className="space-y-8">
+            {/* User Profile Section */}
+            {currentUser && (
+              <div className="glass-card p-5 rounded-2xl">
+                <h2 className="text-lg font-medium mb-4 flex items-center">
+                  <User className="h-5 w-5 mr-2" />
+                  User Profile
+                </h2>
+                
+                <div className="flex items-center space-x-4 mb-6">
+                  <div className="w-16 h-16 rounded-full bg-primary/20 flex items-center justify-center">
+                    {userData?.photoURL ? (
+                      <img src={userData.photoURL} alt="Profile" className="w-full h-full rounded-full object-cover" />
+                    ) : (
+                      <User className="h-8 w-8 text-primary" />
+                    )}
+                  </div>
+                  <div>
+                    <h3 className="font-medium">{userData?.displayName || userData?.email || "User"}</h3>
+                    <p className="text-sm text-muted-foreground">{userData?.email}</p>
+                    <p className="text-sm mt-1">
+                      <span className="text-primary font-medium">{userData?.credits || 0}</span> credits
+                    </p>
+                  </div>
+                </div>
+                
+                <div className="space-y-4">
+                  <Button variant="outline" className="w-full justify-start" onClick={() => navigate('/credits')}>
+                    <Coins className="mr-2 h-4 w-4" />
+                    Manage Credits
+                  </Button>
+                  
+                  <Button variant="outline" className="w-full justify-start" onClick={() => navigate('/login')}>
+                    <Key className="mr-2 h-4 w-4" />
+                    Change Password
+                  </Button>
+                  
+                  <Button 
+                    variant="outline" 
+                    className="w-full justify-start text-amber-500 hover:text-amber-600 hover:bg-amber-50/10" 
+                    onClick={handleLogout}
+                  >
+                    <LogOut className="mr-2 h-4 w-4" />
+                    Log Out
+                  </Button>
+                  
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button 
+                        variant="outline" 
+                        className="w-full justify-start text-destructive hover:text-destructive hover:bg-destructive/10"
+                      >
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        Delete Account
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle className="flex items-center">
+                          <AlertTriangle className="h-5 w-5 text-destructive mr-2" />
+                          Delete Account
+                        </DialogTitle>
+                        <DialogDescription>
+                          This action cannot be undone. All your data will be permanently removed.
+                        </DialogDescription>
+                      </DialogHeader>
+                      <div className="py-4">
+                        <p className="text-sm text-muted-foreground">
+                          By deleting your account, you will lose:
+                        </p>
+                        <ul className="list-disc list-inside text-sm text-muted-foreground mt-2">
+                          <li>All your remaining credits</li>
+                          <li>Your saved liked videos</li>
+                          <li>Your account settings</li>
+                        </ul>
+                      </div>
+                      <DialogFooter>
+                        <Button variant="outline">Cancel</Button>
+                        <Button variant="destructive" onClick={handleDeleteAccount}>Delete Account</Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+                </div>
+              </div>
+            )}
+            
+            {/* Video Settings */}
+            <div className="glass-card p-5 rounded-2xl">
+              <h2 className="text-lg font-medium mb-4">Video Settings</h2>
+              
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label htmlFor="autoplay" className="text-sm font-medium">Autoplay Videos</Label>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Automatically play videos while scrolling
+                    </p>
+                  </div>
+                  <Switch 
+                    id="autoplay" 
+                    checked={autoPlayEnabled} 
+                    onCheckedChange={toggleAutoPlay} 
+                  />
+                </div>
+                
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label htmlFor="sound" className="text-sm font-medium flex items-center">
+                      <Volume2 className="h-4 w-4 mr-1" /> Enable Sound
+                    </Label>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Enable sound when videos are played
+                    </p>
+                  </div>
+                  <Switch 
+                    id="sound" 
+                    checked={soundEnabled} 
+                    onCheckedChange={toggleSound} 
+                  />
+                </div>
+              </div>
+            </div>
+            
             {/* API Key Section */}
             <div className="glass-card p-5 rounded-2xl">
               <h2 className="text-lg font-medium mb-4">Pixabay API Settings</h2>
@@ -85,6 +263,32 @@ const Settings = () => {
               </form>
             </div>
             
+            {/* Notifications Settings */}
+            <div className="glass-card p-5 rounded-2xl">
+              <h2 className="text-lg font-medium mb-4 flex items-center">
+                <Bell className="h-5 w-5 mr-2" />
+                Notification Settings
+              </h2>
+              
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label htmlFor="push-notifications" className="text-sm font-medium">Push Notifications</Label>
+                    <p className="text-xs text-muted-foreground mt-1">Receive app notifications</p>
+                  </div>
+                  <Switch id="push-notifications" defaultChecked />
+                </div>
+                
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label htmlFor="email-notifications" className="text-sm font-medium">Email Notifications</Label>
+                    <p className="text-xs text-muted-foreground mt-1">Receive email updates and offers</p>
+                  </div>
+                  <Switch id="email-notifications" />
+                </div>
+              </div>
+            </div>
+            
             {/* Help Center */}
             <div className="glass-card p-5 rounded-2xl">
               <h2 className="text-lg font-medium mb-4">Help Center</h2>
@@ -99,6 +303,17 @@ const Settings = () => {
                     Some videos on Pixabay do not include audio. The availability of sound depends on the original upload.
                   </p>
                 </div>
+                
+                <div>
+                  <h3 className="text-sm font-medium flex items-center">
+                    <Info className="h-4 w-4 mr-2" />
+                    How does the credit system work?
+                  </h3>
+                  <p className="text-sm text-muted-foreground ml-6 mt-1">
+                    You need 20 credits to download a video. New users automatically receive 50 credits.
+                    You can earn more credits by watching rewarded ads or purchasing credit packages.
+                  </p>
+                </div>
               </div>
             </div>
             
@@ -110,7 +325,8 @@ const Settings = () => {
                 <div>
                   <h3 className="text-sm font-medium">Privacy Policy</h3>
                   <p className="text-sm text-muted-foreground mt-1">
-                    This app uses Pixabay API to display videos. We do not store any personal data, except for your preferences in local storage on your device.
+                    This app uses Pixabay API to display videos. We store your account information and preferences
+                    in Firebase. Your personal data is protected and never shared with third parties.
                   </p>
                 </div>
                 

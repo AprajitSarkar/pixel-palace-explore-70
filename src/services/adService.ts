@@ -19,3 +19,16 @@ export const showAdBanner = () => {
   console.log('Showing banner ad...');
   return true;
 };
+
+export const showRewardedAd = async () => {
+  // In a real app, this would show an actual rewarded ad
+  console.log('Showing rewarded ad...');
+  
+  // Simulate ad viewing
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      console.log('Rewarded ad completed');
+      resolve(true);
+    }, 2000);
+  });
+};
