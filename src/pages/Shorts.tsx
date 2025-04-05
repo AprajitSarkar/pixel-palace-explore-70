@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChevronUp, ChevronDown, Heart, Download, Volume, VolumeX } from 'lucide-react';
@@ -9,6 +8,7 @@ import { toast } from "sonner";
 import { isVideoLiked, toggleLikedVideo } from '@/stores/likedVideosStore';
 import { showAdInterstitial } from '@/services/adService';
 import MobileNavBar from '@/components/MobileNavBar';
+import { Gesture, GestureDetector } from 'react-gesture-handler';
 
 const Shorts = () => {
   const [videos, setVideos] = useState<PixabayVideo[]>([]);
@@ -25,6 +25,30 @@ const Shorts = () => {
     // Load initial videos
     loadVideos();
     
+    // Add touch and gesture listeners
+    const handleTouchStart = (e: TouchEvent) => {
+      const startY = e.touches[0].clientY;
+      const handleTouchMove = (e: TouchEvent) => {
+        const currentY = e.touches[0].clientY;
+        const deltaY = currentY - startY;
+        
+        // Swipe down threshold
+        if (deltaY > 100) {
+          navigateVideo(1);
+        }
+      };
+      
+      const handleTouchEnd = () => {
+        window.removeEventListener('touchmove', handleTouchMove);
+        window.removeEventListener('touchend', handleTouchEnd);
+      };
+      
+      window.addEventListener('touchmove', handleTouchMove);
+      window.addEventListener('touchend', handleTouchEnd);
+    };
+    
+    window.addEventListener('touchstart', handleTouchStart);
+    
     // Listen for swipe events
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'ArrowUp') {
@@ -36,6 +60,7 @@ const Shorts = () => {
     
     window.addEventListener('keydown', handleKeyDown);
     return () => {
+      window.removeEventListener('touchstart', handleTouchStart);
       window.removeEventListener('keydown', handleKeyDown);
       if (autoScrollTimeoutRef.current) {
         clearTimeout(autoScrollTimeoutRef.current);
@@ -230,6 +255,13 @@ const Shorts = () => {
       <div className="h-full w-full">
         {videos.length > 0 && (
           <div className="relative h-full">
+            {/* Swipe Gesture Instructions */}
+            <div className="absolute top-4 left-0 right-0 text-center z-10">
+              <p className="text-white/70 text-xs">
+                Swipe down to next video
+              </p>
+            </div>
+            
             {/* Current video */}
             <div className="absolute inset-0 flex items-center justify-center">
               <video
