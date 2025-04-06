@@ -40,3 +40,14 @@ export const showRewardedAd = async () => {
   });
 };
 
+// Function to track video views and decide when to show ads
+// Returns true when it's time to show an ad (every 5 views)
+export const incrementVideoViews = () => {
+  const VIEW_COUNT_KEY = 'pixel_explorer_view_count';
+  const currentCount = parseInt(localStorage.getItem(VIEW_COUNT_KEY) || '0');
+  const newCount = currentCount + 1;
+  localStorage.setItem(VIEW_COUNT_KEY, newCount.toString());
+  
+  // Show ad every 5 views
+  return newCount % 5 === 0;
+};

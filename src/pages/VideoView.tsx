@@ -1,8 +1,7 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { fetchVideos, PixabayVideo, downloadVideo } from '@/services/pixabayService';
+import { fetchVideos, PixabayVideo, downloadVideo, incrementVideoViews } from '@/services/pixabayService';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from "sonner";
 import { doc, setDoc, getDoc, serverTimestamp, collection, query, where, getDocs, limit, orderBy } from 'firebase/firestore';
@@ -14,7 +13,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import VideoCard from '@/components/VideoCard';
 import { Download, Heart, ZoomIn, ZoomOut, X, Share2 } from 'lucide-react';
-import { showInterstitialAd, incrementVideoViews } from '@/services/adService';
+import { showAdInterstitial } from '@/services/adService';
 
 const VideoView = () => {
   const { videoId } = useParams<{ videoId: string }>();
@@ -36,7 +35,6 @@ const VideoView = () => {
     enabled: !!videoId
   });
 
-  // Check if video is liked
   useEffect(() => {
     if (!currentUser || !video) return;
 
@@ -53,23 +51,19 @@ const VideoView = () => {
     checkIfLiked();
   }, [currentUser, video]);
 
-  // Fetch related videos based on tags
   useEffect(() => {
     if (!video) return;
     
     const fetchRelatedVideos = async () => {
       try {
-        // Extract tags from the current video
         const tags = video.tags.split(',')[0].trim();
         
-        // Fetch videos with similar tags
         const response = await fetchVideos({ 
           q: tags,
           per_page: 8,
           safesearch: true
         });
         
-        // Filter out the current video
         const filteredVideos = response.hits.filter(v => v.id !== video.id);
         setRelatedVideos(filteredVideos.slice(0, 6));
       } catch (error) {
@@ -80,18 +74,15 @@ const VideoView = () => {
     fetchRelatedVideos();
   }, [video]);
 
-  // Record view in history
   useEffect(() => {
     if (!currentUser || !video) return;
     
     const recordView = async () => {
       try {
-        // Check if we should show an ad (every 5 views)
         if (incrementVideoViews()) {
-          showInterstitialAd();
+          showAdInterstitial();
         }
         
-        // Add to view history
         const historyRef = doc(db, 'history', `${currentUser.uid}_${video.id}`);
         await setDoc(historyRef, {
           userId: currentUser.uid,
@@ -124,12 +115,10 @@ const VideoView = () => {
       const likeRef = doc(db, 'likes', `${currentUser.uid}_${video.id}`);
       
       if (isLiked) {
-        // Unlike video
         await setDoc(likeRef, { deleted: true }, { merge: true });
         setIsLiked(false);
         toast("Removed from likes");
       } else {
-        // Like video
         await setDoc(likeRef, {
           userId: currentUser.uid,
           videoId: video.id,
@@ -167,13 +156,10 @@ const VideoView = () => {
     setIsDownloading(true);
     
     try {
-      // Deduct credits
       await updateUserCredits(-20);
       
-      // Get download URL
       const downloadUrl = await downloadVideo(video);
       
-      // Create an anchor element and trigger download
       const a = document.createElement('a');
       a.href = downloadUrl;
       a.download = `video_${video.id}.mp4`;
@@ -181,7 +167,6 @@ const VideoView = () => {
       a.click();
       document.body.removeChild(a);
       
-      // Record download in history
       const historyRef = doc(collection(db, 'users', currentUser.uid, 'downloads'));
       await setDoc(historyRef, {
         videoId: video.id,
@@ -272,7 +257,6 @@ const VideoView = () => {
     <div className="min-h-screen bg-background">
       <Header onSearch={() => {}} />
       <div className="container px-4 py-4 pb-20">
-        {/* Video player section */}
         <div 
           ref={videoContainerRef}
           className="relative mb-6 overflow-hidden rounded-lg"
@@ -290,7 +274,6 @@ const VideoView = () => {
             />
           </div>
           
-          {/* Zoom controls */}
           <div className="absolute top-4 right-4 bg-background/80 rounded-full p-1 backdrop-blur">
             <Button size="icon" variant="ghost" onClick={handleZoomIn} className="h-8 w-8">
               <ZoomIn className="h-4 w-4" />
@@ -304,7 +287,6 @@ const VideoView = () => {
           </div>
         </div>
         
-        {/* Action buttons */}
         <div className="flex flex-wrap gap-3 mb-6">
           <Button
             onClick={handleToggleLike}
@@ -329,7 +311,6 @@ const VideoView = () => {
           </Button>
         </div>
         
-        {/* Video details */}
         <Card className="mb-8">
           <CardContent className="p-4">
             <div className="space-y-2">
@@ -357,7 +338,6 @@ const VideoView = () => {
           </CardContent>
         </Card>
         
-        {/* Related videos */}
         <div>
           <h3 className="text-xl font-semibold mb-4">Related Videos</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
