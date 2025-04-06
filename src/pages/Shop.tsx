@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Header from '@/components/Header';
 import MobileNavBar from '@/components/MobileNavBar';
@@ -8,20 +8,40 @@ import { useAuth } from '@/contexts/AuthContext';
 import { toast } from "sonner";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Coins, Gift, Video, CreditCard, Diamond } from 'lucide-react';
+import { initializePlayStoreBilling, purchaseCredits, showRewardedAd } from '@/services/adService';
+import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 
 interface CreditPackage {
   id: string;
   title: string;
   credits: number;
   price: string;
+  productId: string; // Play Store product ID
   icon: React.ReactNode;
   popular?: boolean;
 }
 
 const Shop = () => {
-  const { userData, updateUserCredits } = useAuth();
+  const { userData, updateUserCredits, currentUser } = useAuth();
   const [isLoading, setIsLoading] = useState<string | null>(null);
+  const [isBillingReady, setBillingReady] = useState(false);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    // Initialize Play Store billing when component mounts
+    const setupBilling = async () => {
+      try {
+        await initializePlayStoreBilling();
+        setBillingReady(true);
+      } catch (error) {
+        console.error('Failed to initialize billing:', error);
+        toast.error('Failed to initialize in-app purchases. Please try again.');
+      }
+    };
+    
+    setupBilling();
+  }, []);
 
   const creditPackages: CreditPackage[] = [
     {
@@ -29,6 +49,7 @@ const Shop = () => {
       title: 'Starter Pack',
       credits: 100,
       price: '$2.99',
+      productId: 'pixel_explorer_100_credits',
       icon: <Coins className="h-10 w-10 text-amber-500" />
     },
     {
@@ -36,6 +57,7 @@ const Shop = () => {
       title: 'Popular Pack',
       credits: 500,
       price: '$9.99',
+      productId: 'pixel_explorer_500_credits',
       icon: <Gift className="h-10 w-10 text-indigo-500" />,
       popular: true
     },
@@ -44,6 +66,7 @@ const Shop = () => {
       title: 'Pro Pack',
       credits: 1200,
       price: '$19.99',
+      productId: 'pixel_explorer_1200_credits',
       icon: <Video className="h-10 w-10 text-blue-500" />
     },
     {
@@ -51,22 +74,42 @@ const Shop = () => {
       title: 'Ultimate Pack',
       credits: 3000,
       price: '$39.99',
+      productId: 'pixel_explorer_3000_credits',
       icon: <Diamond className="h-10 w-10 text-purple-500" />
     }
   ];
 
   const handlePurchase = async (pack: CreditPackage) => {
+    if (!currentUser) {
+      toast.error('Please login to purchase credits');
+      navigate('/login');
+      return;
+    }
+    
     setIsLoading(pack.id);
     
     try {
-      // Simulating a purchase process
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      // Launch Play Store purchase flow
+      const purchaseSuccessful = await purchaseCredits(pack.productId, pack.credits);
       
-      // Update user's credits
-      await updateUserCredits(pack.credits);
-      
-      toast.success(`You've purchased ${pack.credits} credits!`);
-      navigate('/credits');
+      if (purchaseSuccessful) {
+        // Update user's credits
+        await updateUserCredits(pack.credits);
+        
+        // Record purchase in Firebase
+        const purchaseRef = doc(db, 'users', currentUser.uid, 'purchases', `${Date.now()}`);
+        await setDoc(purchaseRef, {
+          productId: pack.productId,
+          credits: pack.credits,
+          amount: pack.price,
+          purchaseDate: serverTimestamp()
+        });
+        
+        toast.success(`You've purchased ${pack.credits} credits!`);
+        navigate('/credits');
+      } else {
+        toast.error('Purchase was not completed.');
+      }
     } catch (error) {
       console.error('Purchase failed:', error);
       toast.error('Failed to complete purchase. Please try again.');
@@ -76,16 +119,31 @@ const Shop = () => {
   };
 
   const handleRewardedAd = async () => {
+    if (!currentUser) {
+      toast.error('Please login to earn credits');
+      navigate('/login');
+      return;
+    }
+    
     setIsLoading('ad');
     
     try {
-      // Simulating a rewarded ad viewing
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Show rewarded ad
+      const adCompleted = await showRewardedAd();
       
-      // Reward user with 10 credits
-      await updateUserCredits(10);
-      
-      toast.success("You've earned 10 credits from watching an ad!");
+      if (adCompleted) {
+        // Reward user with 10 credits
+        await updateUserCredits(10);
+        
+        // Record ad view in Firebase
+        const adViewRef = doc(db, 'users', currentUser.uid, 'adViews', `${Date.now()}`);
+        await setDoc(adViewRef, {
+          credits: 10,
+          viewDate: serverTimestamp()
+        });
+        
+        toast.success("You've earned 10 credits from watching an ad!");
+      }
     } catch (error) {
       console.error('Rewarded ad failed:', error);
       toast.error('Failed to reward credits. Please try again.');
@@ -147,7 +205,7 @@ const Shop = () => {
                 <Button 
                   className="w-full" 
                   onClick={() => handlePurchase(pack)}
-                  disabled={isLoading === pack.id}
+                  disabled={isLoading === pack.id || !isBillingReady}
                 >
                   {isLoading === pack.id ? 'Processing...' : 'Purchase'}
                 </Button>
@@ -197,30 +255,21 @@ const Shop = () => {
             <CardHeader>
               <CardTitle className="flex items-center">
                 <CreditCard className="h-5 w-5 mr-2" />
-                Secure Payments
+                Google Play Store Payments
               </CardTitle>
               <CardDescription>
-                We accept various payment methods for your convenience
+                All payments are processed securely through Google Play
               </CardDescription>
             </CardHeader>
             
             <CardContent className="flex flex-wrap gap-4 justify-center">
-              <div className="w-16 h-10 bg-gray-200 dark:bg-gray-800 rounded flex items-center justify-center">
-                Visa
-              </div>
-              <div className="w-16 h-10 bg-gray-200 dark:bg-gray-800 rounded flex items-center justify-center">
-                MC
-              </div>
-              <div className="w-16 h-10 bg-gray-200 dark:bg-gray-800 rounded flex items-center justify-center">
-                PayPal
-              </div>
-              <div className="w-16 h-10 bg-gray-200 dark:bg-gray-800 rounded flex items-center justify-center">
-                Stripe
+              <div className="w-auto h-10 bg-gray-200 dark:bg-gray-800 rounded flex items-center justify-center px-4">
+                Google Play
               </div>
             </CardContent>
             
             <CardFooter className="text-xs text-muted-foreground text-center px-6">
-              All transactions are secure and encrypted. By purchasing credits, you agree to our Terms of Service and Privacy Policy.
+              All transactions are secure and processed through Google Play Store. By purchasing credits, you agree to our Terms of Service and Privacy Policy.
             </CardFooter>
           </Card>
         </div>
