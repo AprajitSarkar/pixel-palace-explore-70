@@ -1,28 +1,14 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { 
-  User, 
-  createUserWithEmailAndPassword, 
-  signInWithEmailAndPassword, 
-  signOut, 
-  onAuthStateChanged,
-  GoogleAuthProvider,
-  signInWithPopup,
-  sendPasswordResetEmail,
-  updatePassword,
-  deleteUser
-} from 'firebase/auth';
-import { doc, setDoc, getDoc, deleteDoc, serverTimestamp, collection, query, where, getDocs } from 'firebase/firestore';
-import { ref, deleteObject, listAll } from 'firebase/storage';
-import { auth, db, storage, googleProvider } from '@/lib/firebase';
-import { useToast } from "@/hooks/use-toast";
+import { User, Session } from '@supabase/supabase-js';
+import { supabase } from '@/lib/supabase';
 import { toast } from "sonner";
 
 interface UserData {
-  uid: string;
+  id: string;
   email: string | null;
-  displayName: string | null;
-  photoURL: string | null;
+  display_name: string | null;
+  photo_url: string | null;
   credits: number;
 }
 
@@ -54,78 +40,120 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [userData, setUserData] = useState<UserData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [session, setSession] = useState<Session | null>(null);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      console.log("Auth state changed:", user ? `User ${user.uid} logged in` : "No user");
-      setCurrentUser(user);
-      
-      if (user) {
-        try {
-          const userRef = doc(db, 'users', user.uid);
-          const docSnap = await getDoc(userRef);
-          
-          if (docSnap.exists()) {
-            console.log("User document exists in Firestore:", docSnap.data());
-            setUserData(docSnap.data() as UserData);
-          } else {
-            console.log("Creating new user document for:", user.uid);
-            // Create new user profile with initial 50 credits
-            const newUser: UserData = {
-              uid: user.uid,
-              email: user.email,
-              displayName: user.displayName,
-              photoURL: user.photoURL,
-              credits: 50 // New users get 50 credits
-            };
-            
-            try {
-              await setDoc(userRef, {
-                ...newUser,
-                createdAt: serverTimestamp()
-              });
-              
-              console.log("New user document created successfully");
-              setUserData(newUser);
-              toast("Welcome!", {
-                description: "You've received 50 credits as a new user!",
-              });
-            } catch (error) {
-              console.error("Error creating user document:", error);
-            }
-          }
-        } catch (error) {
-          console.error("Error fetching user data:", error);
+    // Set up auth state listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        console.log("Auth state changed:", event, session?.user?.id);
+        setSession(session);
+        setCurrentUser(session?.user || null);
+        
+        if (session?.user) {
+          await fetchUserData(session.user.id);
+        } else {
+          setUserData(null);
         }
-      } else {
-        setUserData(null);
+        setLoading(false);
       }
-      
-      setLoading(false);
-    });
+    );
 
-    return unsubscribe;
+    // Initial session check
+    const initializeAuth = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      setSession(session);
+      setCurrentUser(session?.user || null);
+      
+      if (session?.user) {
+        await fetchUserData(session.user.id);
+      }
+      setLoading(false);
+    };
+
+    initializeAuth();
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
+
+  const fetchUserData = async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', userId)
+        .single();
+      
+      if (error) {
+        console.error("Error fetching user data:", error);
+        
+        // If no user data found, create new user profile
+        if (error.code === 'PGRST116') {
+          await createUserProfile(userId);
+        }
+      } else if (data) {
+        console.log("User data found:", data);
+        setUserData({
+          id: data.id,
+          email: data.email,
+          display_name: data.display_name,
+          photo_url: data.photo_url,
+          credits: data.credits
+        });
+      }
+    } catch (error) {
+      console.error("Error in fetchUserData:", error);
+    }
+  };
+
+  const createUserProfile = async (userId: string) => {
+    try {
+      const { data: userData } = await supabase.auth.getUser();
+      const user = userData?.user;
+      
+      if (!user) return;
+      
+      const newUser = {
+        id: userId,
+        email: user.email,
+        display_name: user.user_metadata?.full_name,
+        photo_url: user.user_metadata?.avatar_url,
+        credits: 50 // New users get 50 credits
+      };
+      
+      const { data, error } = await supabase
+        .from('users')
+        .insert([newUser])
+        .select();
+      
+      if (error) {
+        console.error("Error creating user profile:", error);
+      } else {
+        console.log("User profile created:", data);
+        setUserData(newUser);
+        toast("Welcome!", {
+          description: "You've received 50 credits as a new user!",
+        });
+      }
+    } catch (error) {
+      console.error("Error in createUserProfile:", error);
+    }
+  };
 
   const signUp = async (email: string, password: string) => {
     try {
       console.log("Starting signup process for:", email);
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      console.log("User created successfully:", userCredential.user.uid);
-      
-      // Create user document with initial credits
-      const userRef = doc(db, 'users', userCredential.user.uid);
-      await setDoc(userRef, {
-        uid: userCredential.user.uid,
-        email: userCredential.user.email,
-        displayName: null,
-        photoURL: null,
-        credits: 50, // New users get 50 credits
-        createdAt: serverTimestamp()
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
       });
       
-      console.log("User document created in Firestore");
-      return;
+      if (error) throw error;
+      console.log("User created successfully");
+      
+      // User profile will be created in the onAuthStateChange listener
     } catch (error: any) {
       console.error("Error during sign up:", error);
       throw error;
@@ -135,8 +163,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const login = async (email: string, password: string) => {
     try {
       console.log("Attempting login for:", email);
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      console.log("Login successful for:", userCredential.user.uid);
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+      
+      if (error) throw error;
+      console.log("Login successful");
     } catch (error: any) {
       console.error("Error during login:", error);
       throw error;
@@ -146,8 +179,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const loginWithGoogle = async () => {
     try {
       console.log("Attempting Google login");
-      const result = await signInWithPopup(auth, googleProvider);
-      console.log("Google login successful for:", result.user.uid);
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: window.location.origin
+        }
+      });
+      
+      if (error) throw error;
+      console.log("Google login initiated");
     } catch (error: any) {
       console.error("Error during Google login:", error);
       throw error;
@@ -156,7 +196,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = async () => {
     try {
-      await signOut(auth);
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
     } catch (error: any) {
       console.error("Error during logout:", error);
       throw error;
@@ -165,7 +206,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const resetPassword = async (email: string) => {
     try {
-      await sendPasswordResetEmail(auth, email);
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+      
+      if (error) throw error;
     } catch (error: any) {
       console.error("Error sending reset password email:", error);
       throw error;
@@ -173,9 +218,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const changePassword = async (newPassword: string) => {
-    if (!currentUser) throw new Error("No authenticated user");
     try {
-      await updatePassword(currentUser, newPassword);
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword
+      });
+      
+      if (error) throw error;
     } catch (error: any) {
       console.error("Error changing password:", error);
       throw error;
@@ -186,44 +234,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!currentUser) throw new Error("No authenticated user");
     
     try {
-      console.log("Starting account deletion process for:", currentUser.uid);
+      console.log("Starting account deletion process for:", currentUser.id);
       
-      // 1. Delete user's likes
-      const likesRef = collection(db, 'likes');
-      const likesQuery = query(likesRef, where("userId", "==", currentUser.uid));
-      const likesSnapshot = await getDocs(likesQuery);
+      // 1. Delete user's data from all tables
+      const tables = ['liked_videos', 'video_history', 'credit_purchases', 'ad_views', 'users'];
       
-      const likesDeletePromises = likesSnapshot.docs.map(doc => deleteDoc(doc.ref));
-      await Promise.all(likesDeletePromises);
-      console.log(`${likesSnapshot.docs.length} likes deleted`);
-      
-      // 2. Delete user's history
-      const historyRef = collection(db, 'history');
-      const historyQuery = query(historyRef, where("userId", "==", currentUser.uid));
-      const historySnapshot = await getDocs(historyQuery);
-      
-      const historyDeletePromises = historySnapshot.docs.map(doc => deleteDoc(doc.ref));
-      await Promise.all(historyDeletePromises);
-      console.log(`${historySnapshot.docs.length} history records deleted`);
-      
-      // 3. Delete user's storage files
-      const storageRef = ref(storage, `users/${currentUser.uid}`);
-      try {
-        const filesList = await listAll(storageRef);
-        const deletePromises = filesList.items.map(item => deleteObject(item));
-        await Promise.all(deletePromises);
-        console.log(`${filesList.items.length} storage files deleted`);
-      } catch (error) {
-        console.log("No files to delete or storage error:", error);
+      for (const table of tables) {
+        const { error } = await supabase
+          .from(table)
+          .delete()
+          .eq('user_id', currentUser.id);
+          
+        if (error && table !== 'users') {
+          console.error(`Error deleting from ${table}:`, error);
+        }
       }
       
-      // 4. Delete user data from Firestore
-      await deleteDoc(doc(db, 'users', currentUser.uid));
-      console.log("User document deleted from Firestore");
+      // 2. Delete user's files from storage
+      const { error: storageError } = await supabase.storage
+        .from('user_files')
+        .remove([`${currentUser.id}/`]);
+        
+      if (storageError) {
+        console.log("Storage deletion error or no files:", storageError);
+      }
       
-      // 5. Delete auth user
-      await deleteUser(currentUser);
-      console.log("User deleted from Firebase Auth");
+      // 3. Delete auth user (this will trigger cascade deletion for users table)
+      await logout();
       
       toast.success("Account deleted successfully");
     } catch (error: any) {
@@ -238,21 +275,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const newCredits = userData.credits + amount;
     
     try {
-      console.log(`Updating credits for ${currentUser.uid}: ${userData.credits} + ${amount} = ${newCredits}`);
-      // Update credits in Firestore
-      const userRef = doc(db, 'users', currentUser.uid);
-      await setDoc(userRef, { credits: newCredits }, { merge: true });
+      console.log(`Updating credits for ${currentUser.id}: ${userData.credits} + ${amount} = ${newCredits}`);
+      
+      // Update credits in database
+      const { error } = await supabase
+        .from('users')
+        .update({ credits: newCredits })
+        .eq('id', currentUser.id);
+        
+      if (error) throw error;
       
       // Save purchase record if it's a positive amount (purchase)
       if (amount > 0) {
-        const purchaseRef = collection(db, 'users', currentUser.uid, 'purchases');
-        await setDoc(doc(purchaseRef), {
-          amount: amount,
-          timestamp: serverTimestamp(),
-          creditsBefore: userData.credits,
-          creditsAfter: newCredits
-        });
-        console.log(`Purchase record created for ${amount} credits`);
+        const { error: purchaseError } = await supabase
+          .from('credit_purchases')
+          .insert([{
+            user_id: currentUser.id,
+            amount: amount,
+            credits: amount,
+            product_id: 'manual_adjustment'
+          }]);
+          
+        if (purchaseError) {
+          console.error("Error recording purchase:", purchaseError);
+        } else {
+          console.log(`Purchase record created for ${amount} credits`);
+        }
       }
       
       // Update local state
@@ -264,8 +312,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.error("Error updating user credits:", error);
       throw error;
     }
-    
-    return;
   };
 
   const value = {
