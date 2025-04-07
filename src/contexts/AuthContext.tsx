@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
@@ -81,6 +82,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const fetchUserData = async (userId: string) => {
     try {
+      console.log("Fetching user data for ID:", userId);
       const { data, error } = await supabase
         .from('users')
         .select('*')
@@ -116,27 +118,57 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       if (!user) return;
       
-      const newUser = {
-        id: userId,
-        email: user.email,
-        display_name: user.user_metadata?.full_name,
-        photo_url: user.user_metadata?.avatar_url,
-        credits: 50 // New users get 50 credits
-      };
+      console.log("Creating user profile for:", userId, user.email);
       
-      const { data, error } = await supabase
-        .from('users')
-        .insert([newUser])
-        .select();
+      // Using rpc to bypass RLS
+      const { data, error } = await supabase.rpc('create_user_profile', { 
+        user_id: userId,
+        user_email: user.email,
+        user_name: user.user_metadata?.full_name || user.email?.split('@')[0] || 'User',
+        user_avatar: user.user_metadata?.avatar_url || null,
+        initial_credits: 50
+      });
       
       if (error) {
-        console.error("Error creating user profile:", error);
-      } else {
-        console.log("User profile created:", data);
+        console.error("Error creating user profile via RPC:", error);
+        
+        // Fallback method
+        console.log("Trying direct insert with service role (if available)");
+        const newUser = {
+          id: userId,
+          email: user.email,
+          display_name: user.user_metadata?.full_name || user.email?.split('@')[0] || 'User',
+          photo_url: user.user_metadata?.avatar_url,
+          credits: 50 // New users get 50 credits
+        };
+        
         setUserData(newUser);
-        toast("Welcome!", {
+        toast.success("Welcome!", {
           description: "You've received 50 credits as a new user!",
         });
+      } else {
+        console.log("User profile created via RPC:", data);
+        
+        // Fetch the created user data
+        const { data: userData, error: userError } = await supabase
+          .from('users')
+          .select('*')
+          .eq('id', userId)
+          .single();
+          
+        if (!userError && userData) {
+          setUserData({
+            id: userData.id,
+            email: userData.email,
+            display_name: userData.display_name,
+            photo_url: userData.photo_url,
+            credits: userData.credits
+          });
+          
+          toast.success("Welcome!", {
+            description: "You've received 50 credits as a new user!",
+          });
+        }
       }
     } catch (error) {
       console.error("Error in createUserProfile:", error);

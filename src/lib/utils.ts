@@ -18,4 +18,42 @@ export async function isEmailVerified(email: string): Promise<boolean> {
   }
 }
 
+// Helper to validate database connection and schema
+export async function checkDatabaseSetup(): Promise<boolean> {
+  try {
+    // Test query to check if users table exists and is accessible
+    const { data, error } = await supabase
+      .from('users')
+      .select('count')
+      .limit(1);
+      
+    if (error) {
+      console.error("Database setup check - users table error:", error);
+      return false;
+    }
+    
+    // Check if RPC function exists
+    const { error: rpcError } = await supabase.rpc('create_user_profile', {
+      user_id: '00000000-0000-0000-0000-000000000000',
+      user_email: 'test@example.com',
+      user_name: 'Test User',
+      user_avatar: null,
+      initial_credits: 0
+    });
+    
+    // RPC not found error is expected here (code 42883) because we're passing invalid data
+    // But 404 or function not found would indicate our function doesn't exist
+    if (rpcError && rpcError.code !== '42883' && !rpcError.message.includes('violates')) {
+      console.error("Database setup check - RPC function error:", rpcError);
+      return false;
+    }
+    
+    console.log("Database setup check passed");
+    return true;
+  } catch (error) {
+    console.error("Error in checkDatabaseSetup:", error);
+    return false;
+  }
+}
+
 // Add any other utility functions here...

@@ -26,6 +26,33 @@ CREATE POLICY "Users can update their own data"
   ON users FOR UPDATE 
   USING (auth.uid() = id);
 
+-- Create policy to allow users to insert their own data
+CREATE POLICY "Users can insert their own data" 
+  ON users FOR INSERT 
+  WITH CHECK (auth.uid() = id);
+
+-- Create RPC function to create user profile that bypasses RLS
+CREATE OR REPLACE FUNCTION create_user_profile(
+  user_id UUID,
+  user_email TEXT,
+  user_name TEXT,
+  user_avatar TEXT,
+  initial_credits INTEGER
+)
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  INSERT INTO users (id, email, display_name, photo_url, credits)
+  VALUES (user_id, user_email, user_name, user_avatar, initial_credits)
+  ON CONFLICT (id) DO NOTHING;
+  
+  RETURN true;
+END;
+$$;
+
 -- Create table for liked videos
 CREATE TABLE liked_videos (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),

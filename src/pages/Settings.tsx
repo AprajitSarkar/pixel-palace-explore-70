@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from "@/hooks/use-toast";
@@ -33,7 +34,7 @@ const Settings = () => {
   );
   
   const { toast: uiToast } = useToast();
-  const { currentUser, userData, logout, deleteAccount } = useAuth();
+  const { currentUser, userData, logout, deleteAccount, sendEmailVerification, isEmailVerified } = useAuth();
   const navigate = useNavigate();
 
   const handleApiKeySubmit = (e: React.FormEvent) => {
@@ -89,6 +90,15 @@ const Settings = () => {
       toast.error("Failed to delete account");
     }
   };
+  
+  const handleVerifyEmail = async () => {
+    try {
+      await sendEmailVerification();
+    } catch (error) {
+      console.error("Error sending verification email:", error);
+      toast.error("Failed to send verification email");
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -120,6 +130,17 @@ const Settings = () => {
                     <p className="text-sm mt-1">
                       <span className="text-primary font-medium">{userData?.credits || 0}</span> credits
                     </p>
+                    
+                    {currentUser.email && !isEmailVerified() && (
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="mt-2 text-amber-500" 
+                        onClick={handleVerifyEmail}
+                      >
+                        Verify Email
+                      </Button>
+                    )}
                   </div>
                 </div>
                 
