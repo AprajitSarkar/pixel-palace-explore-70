@@ -1,6 +1,12 @@
 
 // Ad service to manage AdMob ads and in-app purchases
 
+// IMPORTANT: To implement real AdMob ads, install:
+// npm install @capacitor/admob
+// 
+// To implement real Google Play Billing, install:
+// npm install @capacitor-community/purchases
+
 // IMPORTANT: Replace these placeholder IDs with your real IDs from:
 // - AdMob: https://admob.google.com (Ad Units section)
 // - Google Play Console: https://play.google.com/console (In-app products section)
@@ -45,6 +51,7 @@ export const initializeAds = () => {
   console.log('Initializing AdMob with APP_ID:', adIds.APP_ID);
   
   // Real implementation would use something like:
+  // import { AdMob } from '@capacitor/admob';
   // AdMob.initialize({
   //   appId: adIds.APP_ID
   // });
@@ -58,6 +65,7 @@ export const showAdInterstitial = () => {
   console.log(`Showing interstitial ad... (count: ${adCounter}) with ID: ${adIds.INTERSTITIAL}`);
   
   // Real implementation would use something like:
+  // import { AdMob } from '@capacitor/admob';
   // AdMob.showInterstitial({
   //   adId: adIds.INTERSTITIAL
   // });
@@ -70,6 +78,7 @@ export const showAdBanner = () => {
   console.log(`Showing banner ad with ID: ${adIds.BANNER}`);
   
   // Real implementation would use something like:
+  // import { AdMob } from '@capacitor/admob';
   // AdMob.showBanner({
   //   adId: adIds.BANNER,
   //   position: 'bottom'
@@ -83,6 +92,7 @@ export const showRewardedAd = async () => {
   console.log(`Showing rewarded ad with ID: ${adIds.REWARDED}`);
   
   // Real implementation would use something like:
+  // import { AdMob } from '@capacitor/admob';
   // return AdMob.showRewardedVideo({
   //   adId: adIds.REWARDED
   // });
@@ -114,7 +124,8 @@ export const initializePlayStoreBilling = () => {
   console.log('Initializing Play Store Billing API');
   
   // Real implementation would use something like:
-  // return InAppPurchase.initialize({
+  // import { Purchases } from '@capacitor-community/purchases';
+  // return Purchases.initialize({
   //   productIds: Object.values(IN_APP_PRODUCT_IDS)
   // });
   
@@ -133,7 +144,8 @@ export const purchaseCredits = async (productId: string, amount: number): Promis
   console.log(`Launching Play Store purchase flow for product: ${productId}`);
   
   // Real implementation would use something like:
-  // return InAppPurchase.purchase({
+  // import { Purchases } from '@capacitor-community/purchases';
+  // return Purchases.purchase({
   //   productId: productId,
   //   developerPayload: `credits_${amount}`
   // });
