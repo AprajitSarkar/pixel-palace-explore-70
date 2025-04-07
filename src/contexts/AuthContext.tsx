@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
@@ -24,6 +23,8 @@ interface AuthContextType {
   changePassword: (newPassword: string) => Promise<void>;
   deleteAccount: () => Promise<void>;
   updateUserCredits: (amount: number) => Promise<void>;
+  sendEmailVerification: () => Promise<void>;
+  isEmailVerified: () => boolean;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -314,6 +315,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const sendEmailVerification = async () => {
+    try {
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email: currentUser?.email || '',
+      });
+      
+      if (error) throw error;
+      
+      toast.success("Verification email sent", {
+        description: "Please check your inbox and verify your email address",
+      });
+    } catch (error: any) {
+      console.error("Error sending verification email:", error);
+      toast.error("Failed to send verification email");
+      throw error;
+    }
+  };
+  
+  const isEmailVerified = () => {
+    return currentUser?.email_confirmed_at != null;
+  };
+
   const value = {
     currentUser,
     userData,
@@ -325,7 +349,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     resetPassword,
     changePassword,
     deleteAccount,
-    updateUserCredits
+    updateUserCredits,
+    sendEmailVerification,
+    isEmailVerified
   };
 
   return (

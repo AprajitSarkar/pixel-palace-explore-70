@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
@@ -10,7 +9,8 @@ import MobileNavBar from '@/components/MobileNavBar';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, Mail } from "lucide-react";
+import { supabase } from '@/lib/supabase';
 
 const Login = () => {
   const [loginEmail, setLoginEmail] = useState('');
@@ -21,13 +21,14 @@ const Login = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [resetEmail, setResetEmail] = useState('');
   const [showResetForm, setShowResetForm] = useState(false);
+  const [showVerificationAlert, setShowVerificationAlert] = useState(false);
+  const [unverifiedEmail, setUnverifiedEmail] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [processingTimeout, setProcessingTimeout] = useState<NodeJS.Timeout | null>(null);
 
-  const { login, signUp, loginWithGoogle, resetPassword } = useAuth();
+  const { login, signUp, loginWithGoogle, resetPassword, sendEmailVerification } = useAuth();
   const navigate = useNavigate();
 
-  // Clear any existing timeout on unmount
   useEffect(() => {
     return () => {
       if (processingTimeout) {
@@ -40,17 +41,27 @@ const Login = () => {
     e.preventDefault();
     setIsLoading(true);
     setError(null);
+    setShowVerificationAlert(false);
     
-    // Set a timeout to show an error message if the login takes too long
     const timeout = setTimeout(() => {
       setIsLoading(false);
       setError("Login is taking longer than expected. Please try again.");
-    }, 15000); // 15 seconds timeout
+    }, 15000);
     
     setProcessingTimeout(timeout);
     
     try {
       await login(loginEmail, loginPassword);
+      
+      const { data } = await supabase.auth.getUser();
+      if (data.user && !data.user.email_confirmed_at) {
+        setUnverifiedEmail(loginEmail);
+        setShowVerificationAlert(true);
+        if (processingTimeout) clearTimeout(processingTimeout);
+        setIsLoading(false);
+        return;
+      }
+      
       if (processingTimeout) clearTimeout(processingTimeout);
       toast.success("Welcome back!");
       navigate('/');
@@ -59,7 +70,10 @@ const Login = () => {
       console.error("Login error:", error);
       let errorMessage = "Failed to login";
       
-      if (error.code === 'auth/invalid-credential') {
+      if (error.message?.includes('Email not confirmed')) {
+        setUnverifiedEmail(loginEmail);
+        setShowVerificationAlert(true);
+      } else if (error.code === 'auth/invalid-credential') {
         errorMessage = "Invalid email or password";
       } else if (error.code === 'auth/user-not-found') {
         errorMessage = "User not found";
@@ -91,11 +105,10 @@ const Login = () => {
     
     setIsLoading(true);
     
-    // Set a timeout to show an error message if the signup takes too long
     const timeout = setTimeout(() => {
       setIsLoading(false);
       setError("Signup is taking longer than expected. Please try again.");
-    }, 15000); // 15 seconds timeout
+    }, 15000);
     
     setProcessingTimeout(timeout);
     
@@ -125,15 +138,32 @@ const Login = () => {
     }
   };
 
+  const handleResendVerification = async () => {
+    setIsLoading(true);
+    try {
+      try {
+        await login(unverifiedEmail, loginPassword);
+      } catch (error) {
+      }
+      
+      await sendEmailVerification();
+      toast.success("Verification email sent!");
+    } catch (error) {
+      console.error("Error sending verification email:", error);
+      toast.error("Failed to send verification email");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleGoogleLogin = async () => {
     setIsLoading(true);
     setError(null);
     
-    // Set a timeout for Google login
     const timeout = setTimeout(() => {
       setIsLoading(false);
       setError("Google login is taking longer than expected. Please try again.");
-    }, 20000); // 20 seconds timeout
+    }, 20000);
     
     setProcessingTimeout(timeout);
     
@@ -191,6 +221,23 @@ const Login = () => {
               <Alert variant="destructive" className="mb-4">
                 <AlertCircle className="h-4 w-4" />
                 <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
+            
+            {showVerificationAlert && (
+              <Alert className="mb-4 bg-amber-50 border-amber-200">
+                <AlertCircle className="h-4 w-4 text-amber-600" />
+                <AlertDescription className="text-amber-800">
+                  Your email ({unverifiedEmail}) is not verified. Please check your inbox or spam folder for the verification email.
+                  <Button 
+                    variant="link" 
+                    className="p-0 h-auto text-amber-600 font-semibold block mt-1"
+                    onClick={handleResendVerification}
+                    disabled={isLoading}
+                  >
+                    Resend verification email
+                  </Button>
+                </AlertDescription>
               </Alert>
             )}
             
