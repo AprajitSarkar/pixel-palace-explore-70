@@ -1,4 +1,3 @@
-
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { supabase } from '@/lib/supabase';
@@ -75,5 +74,60 @@ export async function checkPixabayAPI(): Promise<boolean> {
     return false;
   }
 }
+
+// Check if app is ready to load (for preventing black screen)
+export async function checkAppReadiness(): Promise<{ready: boolean, errors: string[]}> {
+  const errors: string[] = [];
+  let apiOk = false;
+  
+  try {
+    console.log("Checking app readiness...");
+    
+    // Check Pixabay API
+    apiOk = await checkPixabayAPI();
+    if (!apiOk) {
+      errors.push("Pixabay API is not responding. Check your internet connection.");
+      console.error("App readiness check: Pixabay API failed");
+    } else {
+      console.log("App readiness check: Pixabay API OK");
+    }
+    
+    // Add any other critical services checks here
+    
+    return {
+      ready: apiOk,
+      errors
+    };
+  } catch (error) {
+    console.error("Error in app readiness check:", error);
+    errors.push("Failed to check app readiness");
+    return {
+      ready: false,
+      errors
+    };
+  }
+}
+
+// Helper for animated download
+export const downloadWithAnimation = async (url: string, filename: string): Promise<boolean> => {
+  try {
+    const response = await fetch(url);
+    const blob = await response.blob();
+    
+    const blobUrl = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = blobUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(blobUrl);
+    
+    return true;
+  } catch (error) {
+    console.error("Download failed:", error);
+    return false;
+  }
+};
 
 // Add any other utility functions here...

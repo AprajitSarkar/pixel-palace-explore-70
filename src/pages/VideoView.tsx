@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
@@ -14,6 +13,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import VideoCard from '@/components/VideoCard';
 import { Download, Heart, ZoomIn, ZoomOut, X, Share2 } from 'lucide-react';
 import { showAdInterstitial } from '@/services/adService';
+import { downloadWithAnimation } from '@/lib/utils';
+import DownloadProgress, { DownloadStatus } from '@/components/DownloadProgress';
 
 const VideoView = () => {
   const { videoId } = useParams<{ videoId: string }>();
@@ -24,6 +25,8 @@ const VideoView = () => {
   const [relatedVideos, setRelatedVideos] = useState<PixabayVideo[]>([]);
   const [isDownloading, setIsDownloading] = useState(false);
   const videoContainerRef = useRef<HTMLDivElement>(null);
+  const [downloadStatus, setDownloadStatus] = useState<DownloadStatus>('idle');
+  const [downloadProgress, setDownloadProgress] = useState(0);
 
   const { data: video, isLoading, error } = useQuery({
     queryKey: ['video', videoId],
@@ -103,6 +106,30 @@ const VideoView = () => {
     recordView();
   }, [currentUser, video]);
 
+  // Simulated download progress
+  useEffect(() => {
+    if (downloadStatus === 'downloading') {
+      const progressInterval = setInterval(() => {
+        setDownloadProgress(prev => {
+          if (prev >= 100) {
+            clearInterval(progressInterval);
+            return 100;
+          }
+          return prev + 10;
+        });
+      }, 300);
+      
+      return () => clearInterval(progressInterval);
+    }
+  }, [downloadStatus]);
+
+  // Effect to change status to success when progress completes
+  useEffect(() => {
+    if (downloadProgress >= 100 && downloadStatus === 'downloading') {
+      setDownloadStatus('success');
+    }
+  }, [downloadProgress, downloadStatus]);
+
   const handleToggleLike = async () => {
     if (!currentUser || !video) {
       toast.error("Please log in to like videos");
@@ -152,37 +179,39 @@ const VideoView = () => {
       return;
     }
     
-    setIsDownloading(true);
+    setDownloadStatus('downloading');
+    setDownloadProgress(0);
     
     try {
       await updateUserCredits(-20);
       
       // Download the video
       const downloadUrl = video.videos.medium.url;
+      const filename = `video_${video.id}.mp4`;
       
-      const a = document.createElement('a');
-      a.href = downloadUrl;
-      a.download = `video_${video.id}.mp4`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
+      // Use our utility function for downloading with animation
+      const downloadSuccess = await downloadWithAnimation(downloadUrl, filename);
       
-      // Record download in Supabase
-      await supabase
-        .from('credit_purchases')
-        .insert([{
-          user_id: currentUser.id,
-          amount: -20,
-          credits: -20,
-          product_id: 'download'
-        }]);
-      
-      toast.success("Download started! 20 credits used.");
+      if (downloadSuccess) {
+        // Record download in Supabase
+        await supabase
+          .from('credit_purchases')
+          .insert([{
+            user_id: currentUser.id,
+            amount: -20,
+            credits: -20,
+            product_id: 'download'
+          }]);
+        
+        toast.success("Download started! 20 credits used.");
+      } else {
+        setDownloadStatus('error');
+        toast.error("Download failed. Please try again.");
+      }
     } catch (error) {
       console.error('Error downloading video:', error);
       toast.error("Download failed. Please try again.");
-    } finally {
-      setIsDownloading(false);
+      setDownloadStatus('error');
     }
   };
 
@@ -255,6 +284,11 @@ const VideoView = () => {
       </div>
     );
   }
+
+  const handleResetDownload = () => {
+    setDownloadStatus('idle');
+    setDownloadProgress(0);
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -350,6 +384,15 @@ const VideoView = () => {
           </div>
         </div>
       </div>
+      
+      {/* Download progress indicator */}
+      <DownloadProgress 
+        status={downloadStatus}
+        fileName={video ? `video_${video.id}.mp4` : "video.mp4"}
+        progress={downloadProgress}
+        onClose={handleResetDownload}
+      />
+      
       <MobileNavBar />
     </div>
   );

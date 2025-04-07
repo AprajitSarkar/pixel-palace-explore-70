@@ -13,6 +13,7 @@ import NotFound from "./pages/NotFound";
 import Login from "./pages/Login";
 import Credits from "./pages/Credits";
 import VideoView from "./pages/VideoView";
+import Shorts from "./pages/Shorts";
 
 const queryClient = new QueryClient();
 
@@ -31,6 +32,7 @@ const App = () => (
             <Route path="/login" element={<Login />} />
             <Route path="/credits" element={<Credits />} />
             <Route path="/video/:videoId" element={<VideoView />} />
+            <Route path="/shorts" element={<Shorts />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

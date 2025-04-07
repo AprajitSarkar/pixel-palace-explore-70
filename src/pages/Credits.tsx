@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
@@ -7,9 +6,10 @@ import { toast } from "sonner";
 import MobileNavBar from '@/components/MobileNavBar';
 import Header from '@/components/Header';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Coins, Gift, CreditCard, Diamond, Video, ArrowRight } from 'lucide-react';
+import { Coins, Gift, CreditCard, Diamond, Video, ArrowRight, AlertCircle } from 'lucide-react';
 import { initializePlayStoreBilling, purchaseCredits, showRewardedAd } from '@/services/adService';
 import { supabase } from '@/lib/supabase';
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 interface CreditPackage {
   id: string;
@@ -27,6 +27,8 @@ const Credits = () => {
   const [isLoading, setIsLoading] = useState<string | null>(null);
   const [isBillingReady, setBillingReady] = useState(false);
   const [rewardedAdsWatched, setRewardedAdsWatched] = useState(0);
+  const [hasError, setHasError] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string>("");
   const navigate = useNavigate();
 
   // For a real app, you would track this in database
@@ -42,11 +44,19 @@ const Credits = () => {
     // Initialize Play Store billing when component mounts
     const setupBilling = async () => {
       try {
-        await initializePlayStoreBilling();
-        setBillingReady(true);
+        setHasError(false);
+        const initialized = await initializePlayStoreBilling();
+        setBillingReady(initialized);
+        
+        if (!initialized) {
+          setHasError(true);
+          setErrorMessage("Payment service is currently unavailable. Please try again later.");
+        }
       } catch (error) {
         console.error('Failed to initialize billing:', error);
-        toast.error('Failed to initialize in-app purchases. Please try again.');
+        setHasError(true);
+        setErrorMessage("Failed to initialize in-app purchases. The service might be temporarily down.");
+        toast.error('Payment system unavailable. Please try again later.');
       }
     };
     
@@ -93,6 +103,11 @@ const Credits = () => {
     if (!currentUser) {
       toast.error('Please login to purchase credits');
       navigate('/login');
+      return;
+    }
+    
+    if (!isBillingReady) {
+      toast.error('Payment system is currently unavailable. Please try again later.');
       return;
     }
     
@@ -174,7 +189,7 @@ const Credits = () => {
     <div className="min-h-screen bg-background">
       <Header onSearch={() => {}} />
       <div className="container px-4 py-4 max-w-5xl">
-        <div className="flex flex-col items-center mb-6">
+        <div className="flex flex-col items-center mb-6 animate-fade-in">
           <div className="bg-primary/20 p-4 rounded-full mb-2">
             <Coins className="h-8 w-8 text-primary" />
           </div>
@@ -185,11 +200,21 @@ const Credits = () => {
           </p>
         </div>
         
+        {hasError && (
+          <Alert variant="destructive" className="mb-6 animate-fade-in">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Payment System Unavailable</AlertTitle>
+            <AlertDescription>
+              {errorMessage}
+            </AlertDescription>
+          </Alert>
+        )}
+        
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-10">
           {creditPackages.map((pack) => (
             <Card 
               key={pack.id} 
-              className={`relative overflow-hidden ${pack.popular ? 'border-primary shadow-md' : ''}`}
+              className={`relative overflow-hidden hover-scale ${pack.popular ? 'border-primary shadow-md' : ''}`}
             >
               {pack.popular && (
                 <div className="absolute top-0 right-0 bg-primary text-primary-foreground px-3 py-1 text-xs font-medium">
@@ -210,7 +235,7 @@ const Credits = () => {
               <CardContent className="text-center">
                 <div className="text-3xl font-bold mb-2">{pack.price}</div>
                 <p className="text-sm text-muted-foreground">
-                  {(pack.credits / 50).toFixed(0)} video downloads
+                  {(pack.credits / 20).toFixed(0)} video downloads
                 </p>
               </CardContent>
               
@@ -218,7 +243,7 @@ const Credits = () => {
                 <Button 
                   className="w-full" 
                   onClick={() => handlePurchase(pack)}
-                  disabled={isLoading === pack.id || !isBillingReady}
+                  disabled={isLoading === pack.id || !isBillingReady || hasError}
                 >
                   {isLoading === pack.id ? 'Processing...' : 'Purchase'}
                 </Button>

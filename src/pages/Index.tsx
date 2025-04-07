@@ -8,6 +8,8 @@ import { initializeLikedVideos } from '@/stores/likedVideosStore';
 import { initializeAds, showAdBanner } from '@/services/adService';
 import MobileNavBar from '@/components/MobileNavBar';
 import SplashScreen from '@/components/SplashScreen';
+import { checkAppReadiness } from '@/lib/utils';
+import { AlertCircle } from 'lucide-react';
 
 const Index = () => {
   const [videos, setVideos] = useState<PixabayVideo[]>([]);
@@ -17,7 +19,27 @@ const Index = () => {
   const [page, setPage] = useState(1);
   const [showSplash, setShowSplash] = useState(true);
   const [autoPlayEnabled, setAutoPlayEnabled] = useState(localStorage.getItem('autoplay_enabled') === 'true');
+  const [appErrors, setAppErrors] = useState<string[]>([]);
   const { toast } = useToast();
+
+  // Check if the app is ready to load
+  useEffect(() => {
+    const checkReady = async () => {
+      const { ready, errors } = await checkAppReadiness();
+      
+      if (!ready) {
+        setAppErrors(errors);
+        
+        // If there are errors but we can still try to load videos, we'll do that
+        // but show the error messages
+        errors.forEach(error => {
+          console.error('App readiness error:', error);
+        });
+      }
+    };
+    
+    checkReady();
+  }, []);
 
   useEffect(() => {
     // Initialize liked videos store
@@ -131,6 +153,24 @@ const Index = () => {
         onSelectCategory={handleCategorySelect}
       />
       <main className="pb-20">
+        {appErrors.length > 0 && (
+          <div className="container px-4 py-4 animate-fade-in">
+            <div className="bg-destructive/10 text-destructive p-4 rounded-lg mb-6">
+              <div className="flex items-start">
+                <AlertCircle className="h-5 w-5 mr-2 mt-0.5" />
+                <div>
+                  <h3 className="font-medium">App Issues Detected</h3>
+                  <ul className="mt-2 text-sm space-y-1">
+                    {appErrors.map((error, i) => (
+                      <li key={i}>{error}</li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+        
         <VideosGrid 
           videos={videos} 
           isLoading={isLoading} 
