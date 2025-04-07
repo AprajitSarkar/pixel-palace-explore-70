@@ -1,5 +1,4 @@
-
-// Ad service to manage AdMob ads and in-app purchases
+// Ad service to manage AdMob ads and in-app purchases for Android
 
 // IMPORTANT: To implement real AdMob ads, install:
 // npm install @capacitor/admob

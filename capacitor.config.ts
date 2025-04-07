@@ -13,6 +13,10 @@ const config: CapacitorConfig = {
     SplashScreen: {
       launchAutoHide: false
     }
+  },
+  // Android-specific configurations
+  android: {
+    // You can add Android-specific configurations here when needed
   }
 };
 
