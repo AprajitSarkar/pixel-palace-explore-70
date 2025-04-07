@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
 import { useAuth } from '@/contexts/AuthContext';
@@ -7,56 +7,160 @@ import { toast } from "sonner";
 import MobileNavBar from '@/components/MobileNavBar';
 import Header from '@/components/Header';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Coins, Gift, CreditCard, ArrowRight } from 'lucide-react';
+import { Coins, Gift, CreditCard, Diamond, Video, ArrowRight } from 'lucide-react';
+import { initializePlayStoreBilling, purchaseCredits, showRewardedAd } from '@/services/adService';
+import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+
+interface CreditPackage {
+  id: string;
+  title: string;
+  credits: number;
+  price: string;
+  productId: string;
+  icon: React.ReactNode;
+  popular?: boolean;
+}
 
 const Credits = () => {
   const { currentUser, userData, updateUserCredits } = useAuth();
   const [isLoadingReward, setIsLoadingReward] = useState(false);
+  const [isLoading, setIsLoading] = useState<string | null>(null);
+  const [isBillingReady, setBillingReady] = useState(false);
   const [rewardedAdsWatched, setRewardedAdsWatched] = useState(0);
   const navigate = useNavigate();
 
   // For a real app, you would track this in Firestore
   const maxDailyRewardedAds = 3;
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (!currentUser) {
       navigate('/login');
     }
   }, [currentUser, navigate]);
 
+  useEffect(() => {
+    // Initialize Play Store billing when component mounts
+    const setupBilling = async () => {
+      try {
+        await initializePlayStoreBilling();
+        setBillingReady(true);
+      } catch (error) {
+        console.error('Failed to initialize billing:', error);
+        toast.error('Failed to initialize in-app purchases. Please try again.');
+      }
+    };
+    
+    setupBilling();
+  }, []);
+
+  const creditPackages: CreditPackage[] = [
+    {
+      id: 'starter',
+      title: 'Starter Pack',
+      credits: 100,
+      price: '$2.99',
+      productId: 'pixel_explorer_100_credits',
+      icon: <Coins className="h-10 w-10 text-amber-500" />
+    },
+    {
+      id: 'popular',
+      title: 'Popular Pack',
+      credits: 500,
+      price: '$9.99',
+      productId: 'pixel_explorer_500_credits',
+      icon: <Gift className="h-10 w-10 text-indigo-500" />,
+      popular: true
+    },
+    {
+      id: 'pro',
+      title: 'Pro Pack',
+      credits: 1200,
+      price: '$19.99',
+      productId: 'pixel_explorer_1200_credits',
+      icon: <Video className="h-10 w-10 text-blue-500" />
+    },
+    {
+      id: 'ultimate',
+      title: 'Ultimate Pack',
+      credits: 3000,
+      price: '$39.99',
+      productId: 'pixel_explorer_3000_credits',
+      icon: <Diamond className="h-10 w-10 text-purple-500" />
+    }
+  ];
+
+  const handlePurchase = async (pack: CreditPackage) => {
+    if (!currentUser) {
+      toast.error('Please login to purchase credits');
+      navigate('/login');
+      return;
+    }
+    
+    setIsLoading(pack.id);
+    
+    try {
+      // Launch Play Store purchase flow
+      const purchaseSuccessful = await purchaseCredits(pack.productId, pack.credits);
+      
+      if (purchaseSuccessful) {
+        // Update user's credits
+        await updateUserCredits(pack.credits);
+        
+        // Record purchase in Firebase
+        const purchaseRef = doc(db, 'users', currentUser.uid, 'purchases', `${Date.now()}`);
+        await setDoc(purchaseRef, {
+          productId: pack.productId,
+          credits: pack.credits,
+          amount: pack.price,
+          purchaseDate: serverTimestamp()
+        });
+        
+        toast.success(`You've purchased ${pack.credits} credits!`);
+      } else {
+        toast.error('Purchase was not completed.');
+      }
+    } catch (error) {
+      console.error('Purchase failed:', error);
+      toast.error('Failed to complete purchase. Please try again.');
+    } finally {
+      setIsLoading(null);
+    }
+  };
+
   const watchRewardedAd = async () => {
-    if (rewardedAdsWatched >= maxDailyRewardedAds) {
-      toast.error("You've reached your daily limit for rewarded ads");
+    if (!currentUser) {
+      toast.error('Please login to earn credits');
+      navigate('/login');
       return;
     }
     
     setIsLoadingReward(true);
     
     try {
-      // In a real app, this would show an actual rewarded ad
-      console.log("Showing rewarded ad...");
+      // Show rewarded ad
+      const adCompleted = await showRewardedAd();
       
-      // Simulate ad viewing
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      // Award credits
-      await updateUserCredits(20);
-      
-      setRewardedAdsWatched(prev => prev + 1);
-      toast.success("You earned 20 credits!");
+      if (adCompleted) {
+        // Reward user with 10 credits
+        await updateUserCredits(10);
+        
+        // Record ad view in Firebase
+        const adViewRef = doc(db, 'users', currentUser.uid, 'adViews', `${Date.now()}`);
+        await setDoc(adViewRef, {
+          credits: 10,
+          viewDate: serverTimestamp()
+        });
+        
+        setRewardedAdsWatched(prev => prev + 1);
+        toast.success("You've earned 10 credits from watching an ad!");
+      }
     } catch (error) {
-      console.error("Error showing rewarded ad:", error);
-      toast.error("Failed to show ad");
+      console.error('Rewarded ad failed:', error);
+      toast.error('Failed to reward credits. Please try again.');
     } finally {
       setIsLoadingReward(false);
     }
-  };
-
-  // This would connect to Google Play Billing in a real Capacitor app
-  const handlePurchaseCredits = (amount: number, price: string) => {
-    toast.info(`This would open Google Play billing for ${price}`);
-    console.log(`Purchase ${amount} credits for ${price}`);
-    // In a real app, you would connect to Google Play Billing API here
   };
 
   if (!userData) {
@@ -66,7 +170,7 @@ const Credits = () => {
   return (
     <div className="min-h-screen bg-background">
       <Header onSearch={() => {}} />
-      <div className="container px-4 py-4">
+      <div className="container px-4 py-4 max-w-5xl">
         <div className="flex flex-col items-center mb-6">
           <div className="bg-primary/20 p-4 rounded-full mb-2">
             <Coins className="h-8 w-8 text-primary" />
@@ -78,73 +182,105 @@ const Credits = () => {
           </p>
         </div>
         
-        <div className="grid gap-4 md:grid-cols-2">
-          <Card>
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-10">
+          {creditPackages.map((pack) => (
+            <Card 
+              key={pack.id} 
+              className={`relative overflow-hidden ${pack.popular ? 'border-primary shadow-md' : ''}`}
+            >
+              {pack.popular && (
+                <div className="absolute top-0 right-0 bg-primary text-primary-foreground px-3 py-1 text-xs font-medium">
+                  Popular
+                </div>
+              )}
+              
+              <CardHeader>
+                <div className="flex justify-center mb-4">
+                  {pack.icon}
+                </div>
+                <CardTitle className="text-center">{pack.title}</CardTitle>
+                <CardDescription className="text-center">
+                  Get {pack.credits} credits
+                </CardDescription>
+              </CardHeader>
+              
+              <CardContent className="text-center">
+                <div className="text-3xl font-bold mb-2">{pack.price}</div>
+                <p className="text-sm text-muted-foreground">
+                  {(pack.credits / 50).toFixed(0)} video downloads
+                </p>
+              </CardContent>
+              
+              <CardFooter>
+                <Button 
+                  className="w-full" 
+                  onClick={() => handlePurchase(pack)}
+                  disabled={isLoading === pack.id || !isBillingReady}
+                >
+                  {isLoading === pack.id ? 'Processing...' : 'Purchase'}
+                </Button>
+              </CardFooter>
+            </Card>
+          ))}
+        </div>
+        
+        <div className="my-10">
+          <h2 className="text-2xl font-bold mb-6">Free Credits</h2>
+          
+          <Card className="bg-gradient-to-r from-amber-50 to-yellow-50 dark:from-amber-950/20 dark:to-yellow-950/20">
             <CardHeader>
               <CardTitle className="flex items-center">
-                <Gift className="mr-2 h-5 w-5 text-primary" /> 
-                Free Credits
+                <Gift className="h-5 w-5 mr-2 text-amber-500" />
+                Watch an Ad
               </CardTitle>
               <CardDescription>
-                Watch video ads to earn free credits
+                Watch a short advertisement to earn free credits
               </CardDescription>
             </CardHeader>
+            
             <CardContent>
-              <div className="text-center mb-4">
-                <div className="text-3xl font-semibold">20</div>
-                <div className="text-sm text-muted-foreground">credits per ad</div>
-              </div>
-              <div className="text-xs text-muted-foreground mb-4 text-center">
-                {rewardedAdsWatched}/{maxDailyRewardedAds} ads watched today
-              </div>
+              <p className="text-sm">
+                You can earn <span className="font-bold">10 credits</span> for each rewarded ad you watch.
+                There's no daily limit, so you can watch as many ads as you want!
+              </p>
             </CardContent>
+            
             <CardFooter>
               <Button 
-                className="w-full" 
-                onClick={watchRewardedAd} 
-                disabled={isLoadingReward || rewardedAdsWatched >= maxDailyRewardedAds}
+                variant="outline" 
+                className="w-full"
+                onClick={watchRewardedAd}
+                disabled={isLoadingReward}
               >
-                {isLoadingReward ? "Loading Ad..." : "Watch Ad for Credits"}
+                {isLoadingReward ? 'Loading Ad...' : 'Watch Ad for 10 Credits'}
               </Button>
             </CardFooter>
           </Card>
+        </div>
+        
+        <div className="mt-10 mb-20">
+          <h2 className="text-2xl font-bold mb-6">Payment Methods</h2>
           
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center">
-                <CreditCard className="mr-2 h-5 w-5 text-primary" />
-                Purchase Credits
+                <CreditCard className="h-5 w-5 mr-2" />
+                Google Play Store Payments
               </CardTitle>
               <CardDescription>
-                Buy credit packages
+                All payments are processed securely through Google Play
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-2">
-              <Button 
-                variant="outline" 
-                className="w-full justify-between" 
-                onClick={() => handlePurchaseCredits(100, "$0.99")}
-              >
-                <span>100 Credits</span>
-                <span className="flex items-center">$0.99 <ArrowRight className="ml-2 h-4 w-4" /></span>
-              </Button>
-              <Button 
-                variant="outline" 
-                className="w-full justify-between" 
-                onClick={() => handlePurchaseCredits(500, "$3.99")}
-              >
-                <span>500 Credits</span>
-                <span className="flex items-center">$3.99 <ArrowRight className="ml-2 h-4 w-4" /></span>
-              </Button>
-              <Button 
-                variant="outline" 
-                className="w-full justify-between" 
-                onClick={() => handlePurchaseCredits(1000, "$6.99")}
-              >
-                <span>1000 Credits</span>
-                <span className="flex items-center">$6.99 <ArrowRight className="ml-2 h-4 w-4" /></span>
-              </Button>
+            
+            <CardContent className="flex flex-wrap gap-4 justify-center">
+              <div className="w-auto h-10 bg-gray-200 dark:bg-gray-800 rounded flex items-center justify-center px-4">
+                Google Play
+              </div>
             </CardContent>
+            
+            <CardFooter className="text-xs text-muted-foreground text-center px-6">
+              All transactions are secure and processed through Google Play Store. By purchasing credits, you agree to our Terms of Service and Privacy Policy.
+            </CardFooter>
           </Card>
         </div>
       </div>

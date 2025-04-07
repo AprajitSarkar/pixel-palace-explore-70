@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Search, Heart, Settings, Home, LogIn, ShoppingCart } from 'lucide-react';
+import { Search, Heart, Settings, Home, LogIn, Coins } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -58,12 +58,12 @@ const MobileNavBar = () => {
                 variant="ghost"
                 size="icon"
                 className={`flex flex-col items-center justify-center rounded-full p-2 ${
-                  isActive('/shop') ? 'text-primary bg-primary/10' : 'text-muted-foreground'
+                  isActive('/credits') ? 'text-primary bg-primary/10' : 'text-muted-foreground'
                 }`}
-                onClick={() => navigate('/shop')}
+                onClick={() => navigate('/credits')}
               >
-                <ShoppingCart className="h-6 w-6" />
-                <span className="text-xs mt-1">Shop</span>
+                <Coins className="h-6 w-6" />
+                <span className="text-xs mt-1">Credits</span>
               </Button>
               
               <Button

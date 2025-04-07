@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { User, LogOut, Settings, Heart, Coins, ShoppingCart } from "lucide-react";
+import { User, LogOut, Settings, Heart, Coins } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -70,10 +70,6 @@ const ProfileMenu = () => {
           <DropdownMenuItem onClick={() => navigate('/likes')}>
             <Heart className="mr-2 h-4 w-4" />
             <span>Likes</span>
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => navigate('/shop')}>
-            <ShoppingCart className="mr-2 h-4 w-4" />
-            <span>Shop</span>
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => navigate('/credits')}>
             <Coins className="mr-2 h-4 w-4" />
