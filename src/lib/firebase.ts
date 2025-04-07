@@ -13,8 +13,8 @@ const firebaseConfig = {
   projectId: "hamsterkeygenerator",
   storageBucket: "hamsterkeygenerator.appspot.com",
   messagingSenderId: "791565134228",
-  appId: "1:791565134228:web:b1e5eca216e4490a150781",
-  measurementId: "G-006Y3WTQYB"
+  appId: "1:791565134228:web:a8c62f31e253add4150781",
+  measurementId: "G-7HQPV2Q12L"
 };
 
 // Initialize Firebase
