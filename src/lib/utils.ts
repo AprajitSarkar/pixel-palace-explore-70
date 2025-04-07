@@ -56,4 +56,24 @@ export async function checkDatabaseSetup(): Promise<boolean> {
   }
 }
 
+// Helper to check if Pixabay API is working
+export async function checkPixabayAPI(): Promise<boolean> {
+  try {
+    const apiKey = localStorage.getItem('pixabay_api_key');
+    const response = await fetch(`https://pixabay.com/api/videos/?key=${apiKey || '49658971-12bf63930d640b2f9ffcc901c'}&per_page=1`);
+    
+    if (!response.ok) {
+      console.error(`Pixabay API check failed: ${response.status} ${response.statusText}`);
+      return false;
+    }
+    
+    const data = await response.json();
+    console.log("Pixabay API check passed", data);
+    return true;
+  } catch (error) {
+    console.error("Pixabay API check failed:", error);
+    return false;
+  }
+}
+
 // Add any other utility functions here...
