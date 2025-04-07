@@ -1,11 +1,11 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { fetchVideos, PixabayVideo, downloadVideo, incrementVideoViews } from '@/services/pixabayService';
+import { fetchVideos, PixabayVideo, incrementVideoViews } from '@/services/pixabayService';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from "sonner";
-import { doc, setDoc, getDoc, serverTimestamp, collection, query, where, getDocs, limit, orderBy } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { supabase } from '@/lib/supabase';
 import Header from '@/components/Header';
 import MobileNavBar from '@/components/MobileNavBar';
 import { Button } from "@/components/ui/button";
@@ -40,9 +40,14 @@ const VideoView = () => {
 
     const checkIfLiked = async () => {
       try {
-        const likeRef = doc(db, 'likes', `${currentUser.uid}_${video.id}`);
-        const docSnap = await getDoc(likeRef);
-        setIsLiked(docSnap.exists());
+        const { data } = await supabase
+          .from('liked_videos')
+          .select('*')
+          .eq('user_id', currentUser.id)
+          .eq('video_id', video.id.toString())
+          .single();
+          
+        setIsLiked(!!data);
       } catch (error) {
         console.error('Error checking if video is liked:', error);
       }
@@ -83,19 +88,13 @@ const VideoView = () => {
           showAdInterstitial();
         }
         
-        const historyRef = doc(db, 'history', `${currentUser.uid}_${video.id}`);
-        await setDoc(historyRef, {
-          userId: currentUser.uid,
-          videoId: video.id,
-          videoData: {
-            id: video.id,
-            thumbnail: video.videos.tiny.url,
-            user: video.user,
-            tags: video.tags,
-            duration: video.duration
-          },
-          viewedAt: serverTimestamp()
-        });
+        await supabase
+          .from('video_history')
+          .upsert({
+            user_id: currentUser.id,
+            video_id: video.id.toString(),
+            viewed_at: new Date()
+          }, { onConflict: 'user_id,video_id' });
       } catch (error) {
         console.error('Error recording view history:', error);
       }
@@ -112,25 +111,25 @@ const VideoView = () => {
     }
     
     try {
-      const likeRef = doc(db, 'likes', `${currentUser.uid}_${video.id}`);
-      
       if (isLiked) {
-        await setDoc(likeRef, { deleted: true }, { merge: true });
+        await supabase
+          .from('liked_videos')
+          .delete()
+          .eq('user_id', currentUser.id)
+          .eq('video_id', video.id.toString());
+          
         setIsLiked(false);
         toast("Removed from likes");
       } else {
-        await setDoc(likeRef, {
-          userId: currentUser.uid,
-          videoId: video.id,
-          videoData: {
-            id: video.id,
-            thumbnail: video.videos.tiny.url,
-            user: video.user,
-            tags: video.tags,
-            duration: video.duration
-          },
-          likedAt: serverTimestamp()
-        });
+        await supabase
+          .from('liked_videos')
+          .insert([{
+            user_id: currentUser.id,
+            video_id: video.id.toString(),
+            video_data: video,
+            category: video.tags.split(',')[0]
+          }]);
+        
         setIsLiked(true);
         toast("Added to likes");
       }
@@ -158,7 +157,8 @@ const VideoView = () => {
     try {
       await updateUserCredits(-20);
       
-      const downloadUrl = await downloadVideo(video);
+      // Download the video
+      const downloadUrl = video.videos.medium.url;
       
       const a = document.createElement('a');
       a.href = downloadUrl;
@@ -167,12 +167,15 @@ const VideoView = () => {
       a.click();
       document.body.removeChild(a);
       
-      const historyRef = doc(collection(db, 'users', currentUser.uid, 'downloads'));
-      await setDoc(historyRef, {
-        videoId: video.id,
-        downloadedAt: serverTimestamp(),
-        creditsUsed: 20
-      });
+      // Record download in Supabase
+      await supabase
+        .from('credit_purchases')
+        .insert([{
+          user_id: currentUser.id,
+          amount: -20,
+          credits: -20,
+          product_id: 'download'
+        }]);
       
       toast.success("Download started! 20 credits used.");
     } catch (error) {

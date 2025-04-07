@@ -9,8 +9,7 @@ import Header from '@/components/Header';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Coins, Gift, CreditCard, Diamond, Video, ArrowRight } from 'lucide-react';
 import { initializePlayStoreBilling, purchaseCredits, showRewardedAd } from '@/services/adService';
-import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { supabase } from '@/lib/supabase';
 
 interface CreditPackage {
   id: string;
@@ -30,7 +29,7 @@ const Credits = () => {
   const [rewardedAdsWatched, setRewardedAdsWatched] = useState(0);
   const navigate = useNavigate();
 
-  // For a real app, you would track this in Firestore
+  // For a real app, you would track this in database
   const maxDailyRewardedAds = 3;
 
   useEffect(() => {
@@ -107,14 +106,16 @@ const Credits = () => {
         // Update user's credits
         await updateUserCredits(pack.credits);
         
-        // Record purchase in Firebase
-        const purchaseRef = doc(db, 'users', currentUser.uid, 'purchases', `${Date.now()}`);
-        await setDoc(purchaseRef, {
-          productId: pack.productId,
+        // Record purchase in Supabase
+        const purchaseRecord = {
+          user_id: currentUser.id,
+          product_id: pack.productId,
           credits: pack.credits,
-          amount: pack.price,
-          purchaseDate: serverTimestamp()
-        });
+          amount: parseInt(pack.price.replace('$', '')),
+          purchase_date: new Date()
+        };
+        
+        await supabase.from('credit_purchases').insert([purchaseRecord]);
         
         toast.success(`You've purchased ${pack.credits} credits!`);
       } else {
@@ -145,12 +146,14 @@ const Credits = () => {
         // Reward user with 10 credits
         await updateUserCredits(10);
         
-        // Record ad view in Firebase
-        const adViewRef = doc(db, 'users', currentUser.uid, 'adViews', `${Date.now()}`);
-        await setDoc(adViewRef, {
+        // Record ad view in Supabase
+        const adViewRecord = {
+          user_id: currentUser.id,
           credits: 10,
-          viewDate: serverTimestamp()
-        });
+          view_date: new Date()
+        };
+        
+        await supabase.from('ad_views').insert([adViewRecord]);
         
         setRewardedAdsWatched(prev => prev + 1);
         toast.success("You've earned 10 credits from watching an ad!");

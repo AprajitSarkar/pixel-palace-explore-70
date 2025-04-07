@@ -41,8 +41,8 @@ const ProfileMenu = () => {
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" className="relative h-10 w-10 rounded-full">
           <Avatar>
-            {userData?.photoURL ? (
-              <AvatarImage src={userData.photoURL} alt="Profile" />
+            {userData?.photo_url ? (
+              <AvatarImage src={userData.photo_url} alt="Profile" />
             ) : (
               <AvatarFallback>
                 <User className="h-5 w-5" />
@@ -54,7 +54,7 @@ const ProfileMenu = () => {
       <DropdownMenuContent className="w-56" align="end" forceMount>
         <DropdownMenuLabel>
           <div className="flex flex-col space-y-1">
-            <p className="text-sm font-medium leading-none">{userData?.displayName || userData?.email || "User"}</p>
+            <p className="text-sm font-medium leading-none">{userData?.display_name || userData?.email || "User"}</p>
             <p className="text-xs leading-none text-muted-foreground">{userData?.email}</p>
             <p className="text-xs font-medium mt-1">
               <span className="text-primary">{userData?.credits || 0}</span> credits

@@ -1,4 +1,3 @@
-
 import { supabase } from '@/lib/supabase';
 
 export interface PixabayVideo {
@@ -116,6 +115,12 @@ export const fetchVideoById = async (id: string): Promise<PixabayVideo | null> =
     console.error('Error fetching video by ID:', error);
     throw error;
   }
+};
+
+// Add downloadVideo function
+export const downloadVideo = async (video: PixabayVideo): Promise<string> => {
+  // This function returns the URL of the video to download
+  return video.videos.medium.url;
 };
 
 // Record video view in history

@@ -108,14 +108,14 @@ const Settings = () => {
                 
                 <div className="flex items-center space-x-4 mb-6">
                   <div className="w-16 h-16 rounded-full bg-primary/20 flex items-center justify-center">
-                    {userData?.photoURL ? (
-                      <img src={userData.photoURL} alt="Profile" className="w-full h-full rounded-full object-cover" />
+                    {userData?.photo_url ? (
+                      <img src={userData.photo_url} alt="Profile" className="w-full h-full rounded-full object-cover" />
                     ) : (
                       <User className="h-8 w-8 text-primary" />
                     )}
                   </div>
                   <div>
-                    <h3 className="font-medium">{userData?.displayName || userData?.email || "User"}</h3>
+                    <h3 className="font-medium">{userData?.display_name || userData?.email || "User"}</h3>
                     <p className="text-sm text-muted-foreground">{userData?.email}</p>
                     <p className="text-sm mt-1">
                       <span className="text-primary font-medium">{userData?.credits || 0}</span> credits

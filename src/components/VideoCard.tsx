@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { Play, Pause, Volume, Volume2, Heart, Download } from 'lucide-react';
 import { Button } from "@/components/ui/button";
@@ -77,8 +78,8 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, autoPlayEnabled = false })
     }
   };
 
-  const handleLike = () => {
-    const isNowLiked = toggleLikedVideo(video);
+  const handleLike = async () => {
+    const isNowLiked = await toggleLikedVideo(video);
     setLiked(isNowLiked);
     toast[isNowLiked ? "success" : "info"](
       isNowLiked ? "Video added to likes" : "Video removed from likes"
