@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
@@ -46,9 +47,11 @@ const Credits = () => {
       try {
         setHasError(false);
         const initialized = await initializePlayStoreBilling();
-        setBillingReady(initialized);
+        // Fix Error #1: Set state directly with the boolean result
+        setBillingReady(initialized === true);
         
-        if (!initialized) {
+        // Fix Error #2: Check truthiness properly
+        if (initialized !== true) {
           setHasError(true);
           setErrorMessage("Payment service is currently unavailable. Please try again later.");
         }
