@@ -15,7 +15,6 @@ export const initializeAds = async (): Promise<void> => {
   try {
     if (window.Capacitor) {
       await AdMob.initialize({
-        // Removed requestTrackingAuthorization as it doesn't exist in the type definition
         testingDevices: [],
         initializeForTesting: true,
       });
@@ -81,9 +80,11 @@ export const showRewardedAd = async (): Promise<boolean> => {
       
       const result = await AdMob.showRewardVideoAd();
       
-      // Check if result exists and has reward property
-      // Note: different versions of the plugin may use different property names
-      if (result && (result.reward || result.rewards)) {
+      // According to the correct type definition, just check if result exists
+      // The mere existence of a successful result means the user completed the ad
+      if (result) {
+        console.log('Rewarded ad completed:', result);
+        
         // Record ad view in Supabase
         const { data: { user } } = await supabase.auth.getUser();
         
