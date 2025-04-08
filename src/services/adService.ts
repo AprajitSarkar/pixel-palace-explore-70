@@ -81,8 +81,9 @@ export const showRewardedAd = async (): Promise<boolean> => {
       
       const result = await AdMob.showRewardVideoAd();
       
-      // Fixed: The property is called 'rewardItem' not 'reward' according to the type definition
-      if (result && result.rewardItem) {
+      // Check if result exists and has reward property
+      // Note: different versions of the plugin may use different property names
+      if (result && (result.reward || result.rewards)) {
         // Record ad view in Supabase
         const { data: { user } } = await supabase.auth.getUser();
         
