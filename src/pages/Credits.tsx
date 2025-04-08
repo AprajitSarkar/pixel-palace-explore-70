@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
@@ -46,18 +45,14 @@ const Credits = () => {
     const setupBilling = async () => {
       try {
         setHasError(false);
-        const initialized = await initializePlayStoreBilling();
-        // Fix Error #1: Set state directly with the boolean result
-        setBillingReady(initialized === true);
-        
-        // Fix Error #2: Check truthiness properly
-        if (initialized !== true) {
-          setHasError(true);
-          setErrorMessage("Payment service is currently unavailable. Please try again later.");
-        }
+        // Call the initialization function
+        await initializePlayStoreBilling();
+        // Assume billing is ready if no error is thrown
+        setBillingReady(true);
       } catch (error) {
         console.error('Failed to initialize billing:', error);
         setHasError(true);
+        setBillingReady(false);
         setErrorMessage("Failed to initialize in-app purchases. The service might be temporarily down.");
         toast.error('Payment system unavailable. Please try again later.');
       }

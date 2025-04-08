@@ -47,9 +47,11 @@ export const showRewardedAd = async (): Promise<boolean> => {
   return true;
 };
 
-export const initializePlayStoreBilling = async (): Promise<void> => {
+export const initializePlayStoreBilling = async (): Promise<boolean> => {
   // In a real app, this would initialize the Play Store billing client
   console.log('Play Store billing initialized');
+  // Return true to indicate successful initialization
+  return true;
 };
 
 export const purchaseCredits = async (productId: string, credits: number): Promise<boolean> => {
