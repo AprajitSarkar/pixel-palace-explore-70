@@ -15,7 +15,7 @@ export const initializeAds = async (): Promise<void> => {
   try {
     if (window.Capacitor) {
       await AdMob.initialize({
-        requestTrackingAuthorization: true,
+        // Removed requestTrackingAuthorization as it doesn't exist in the type definition
         testingDevices: [],
         initializeForTesting: true,
       });
@@ -81,7 +81,8 @@ export const showRewardedAd = async (): Promise<boolean> => {
       
       const result = await AdMob.showRewardVideoAd();
       
-      if (result && result.reward) {
+      // Fixed: The property is called 'rewardItem' not 'reward' according to the type definition
+      if (result && result.rewardItem) {
         // Record ad view in Supabase
         const { data: { user } } = await supabase.auth.getUser();
         
