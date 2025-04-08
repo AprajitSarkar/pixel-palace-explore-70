@@ -22,7 +22,13 @@ const config: CapacitorConfig = {
   },
   // Android-specific configurations
   android: {
-    // Add any Android-specific configuration here
+    // Add Android-specific configuration to fix JVM target issue
+    buildOptions: {
+      // Set kotlinVersion to a compatible version
+      kotlinVersion: '1.8.10',
+      // Set a compatible JVM target version (1.8 is usually safe)
+      jvmTarget: '1.8'
+    }
   }
 };
 
