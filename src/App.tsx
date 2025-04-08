@@ -6,7 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { useEffect } from "react";
-import { initializeAds, initializePlayStoreBilling } from "@/services/adService";
+import { initializeAds } from "@/services/adService";
 import Index from "./pages/Index";
 import Search from "./pages/Search";
 import Likes from "./pages/Likes";
@@ -20,13 +20,12 @@ import Shorts from "./pages/Shorts";
 const queryClient = new QueryClient();
 
 const App = () => {
-  // Initialize AdMob and Play Store billing when the app starts
+  // Initialize AdMob when the app starts
   useEffect(() => {
     const initializeCapacitorPlugins = async () => {
       try {
         console.log("Initializing Capacitor plugins...");
         await initializeAds();
-        await initializePlayStoreBilling();
         console.log("Capacitor plugins initialized successfully");
       } catch (error) {
         console.error("Error initializing Capacitor plugins:", error);

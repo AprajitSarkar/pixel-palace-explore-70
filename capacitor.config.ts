@@ -18,10 +18,6 @@ const config: CapacitorConfig = {
       appId: 'ca-app-pub-3279473081670891~1431437217',
       testingDevices: [],
       initializeForTesting: true
-    },
-    // Add Google Play Billing configuration
-    GooglePlayBilling: {
-      enablePendingPurchases: true
     }
   },
   // Android-specific configurations
