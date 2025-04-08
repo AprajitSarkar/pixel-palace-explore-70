@@ -12,11 +12,21 @@ const config: CapacitorConfig = {
   plugins: {
     SplashScreen: {
       launchAutoHide: false
+    },
+    // Add AdMob configuration that will be used by the plugin
+    AdMob: {
+      appId: 'ca-app-pub-3279473081670891~1431437217',
+      testingDevices: [],
+      initializeForTesting: true
+    },
+    // Add Google Play Billing configuration
+    GooglePlayBilling: {
+      enablePendingPurchases: true
     }
   },
   // Android-specific configurations
   android: {
-    // You can add Android-specific configurations here when needed
+    // Add any Android-specific configuration here
   }
 };
 
